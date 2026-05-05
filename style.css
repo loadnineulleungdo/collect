@@ -2039,3 +2039,7 @@ button {
     min-width: 980px;
   }
 }
+.actions-below-table.hidden {
+  display: none;
+}
+
