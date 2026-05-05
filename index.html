@@ -25,6 +25,7 @@
         <button class="tab" type="button" data-tab="boss">보스컬렉</button>
         <button class="tab" type="button" data-tab="distribution">분배</button>
         <button class="tab" type="button" data-tab="history">분배 이력</button>
+        <button class="tab" type="button" data-tab="bossParticipation">보스 참여 이력</button>
       </div>
 
     </section>
@@ -267,6 +268,71 @@
             <table class="distribution-table">
               <thead id="historyLogTableHead"></thead>
               <tbody id="historyLogTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="boss-participation-content hidden" id="bossParticipationContent">
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">보스 참여 이력 조회</h3>
+          <div class="boss-participation-filter-grid">
+            <div class="distribution-field">
+              <label for="bossParticipationStartDateInput">시작일</label>
+              <input type="date" id="bossParticipationStartDateInput">
+            </div>
+            <div class="distribution-field">
+              <label for="bossParticipationEndDateInput">종료일</label>
+              <input type="date" id="bossParticipationEndDateInput">
+            </div>
+            <div class="distribution-field">
+              <label for="bossParticipationBossInput">보스명</label>
+              <input type="text" id="bossParticipationBossInput" placeholder="보스명 검색">
+            </div>
+            <div class="distribution-field">
+              <label for="bossParticipationParticipantInput">참여자</label>
+              <input type="text" id="bossParticipationParticipantInput" placeholder="참여자 검색">
+            </div>
+            <div class="distribution-button-row boss-participation-button-row">
+              <button class="btn btn-primary" id="bossParticipationSearchBtn" type="button">조회</button>
+              <button class="btn btn-gray" id="bossParticipationResetBtn" type="button">초기화</button>
+            </div>
+          </div>
+          <p class="distribution-muted">보스봇 DB의 컷 기록과 참여자 정보를 조회합니다. 시작일/종료일을 비우면 최근 기록 기준으로 조회합니다.</p>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">참여 이력 요약</h3>
+          <div class="boss-participation-summary-grid">
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">전체 기록</div>
+              <div class="distribution-summary-value" id="bossParticipationSummaryTotalRecords">0</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">컷 기록</div>
+              <div class="distribution-summary-value" id="bossParticipationSummaryCutRecords">0</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">멍 기록</div>
+              <div class="distribution-summary-value" id="bossParticipationSummaryMungRecords">0</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">총 참여 수</div>
+              <div class="distribution-summary-value" id="bossParticipationSummaryParticipants">0</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">고유 참여자</div>
+              <div class="distribution-summary-value" id="bossParticipationSummaryUniqueParticipants">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">보스 참여 이력</h3>
+          <div class="distribution-table-wrap boss-participation-table-wrap">
+            <table class="distribution-table boss-participation-table">
+              <thead id="bossParticipationTableHead"></thead>
+              <tbody id="bossParticipationTableBody"></tbody>
             </table>
           </div>
         </div>
