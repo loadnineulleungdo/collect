@@ -171,6 +171,7 @@ function bindElements() {
   el.bossParticipationParticipantInput = document.getElementById("bossParticipationParticipantInput");
   el.bossParticipationSearchBtn = document.getElementById("bossParticipationSearchBtn");
   el.bossParticipationResetBtn = document.getElementById("bossParticipationResetBtn");
+  el.bossParticipationExportBtn = document.getElementById("bossParticipationExportBtn");
   el.bossParticipationSummaryTotalRecords = document.getElementById("bossParticipationSummaryTotalRecords");
   el.bossParticipationSummaryCutRecords = document.getElementById("bossParticipationSummaryCutRecords");
   el.bossParticipationSummaryMungRecords = document.getElementById("bossParticipationSummaryMungRecords");
@@ -205,7 +206,6 @@ function bindEvents() {
       }
 
       if (nextTab === "bossParticipation") {
-        await loadBossParticipationData();
         renderAll();
         return;
       }
@@ -284,6 +284,7 @@ function bindEvents() {
   el.historyExportBtn.addEventListener("click", handleHistoryExport);
   el.bossParticipationSearchBtn?.addEventListener("click", handleBossParticipationSearch);
   el.bossParticipationResetBtn?.addEventListener("click", handleBossParticipationReset);
+  el.bossParticipationExportBtn?.addEventListener("click", handleBossParticipationExport);
 
   el.addMemberBtn.addEventListener("click", addMember);
   el.addItemBtn.addEventListener("click", addItem);
@@ -2664,11 +2665,13 @@ async function handleBossParticipationReset() {
   state.bossParticipation.endDate = "";
   state.bossParticipation.bossKeyword = "";
   state.bossParticipation.participantKeyword = "";
+  state.bossParticipation.rows = [];
+  state.bossParticipation.loaded = false;
+  state.bossParticipation.loading = false;
   if (el.bossParticipationStartDateInput) el.bossParticipationStartDateInput.value = "";
   if (el.bossParticipationEndDateInput) el.bossParticipationEndDateInput.value = "";
   if (el.bossParticipationBossInput) el.bossParticipationBossInput.value = "";
   if (el.bossParticipationParticipantInput) el.bossParticipationParticipantInput.value = "";
-  await loadBossParticipationData();
   renderBossParticipationTab();
 }
 
@@ -2819,7 +2822,6 @@ function renderBossParticipationTable() {
       <th>컷자</th>
       <th class="is-right">참여자 수</th>
       <th>참여자</th>
-      <th>다음 젠 시간</th>
     </tr>
   `;
 
@@ -2827,13 +2829,13 @@ function renderBossParticipationTable() {
   const rows = tabState?.rows || [];
 
   if (tabState?.loading) {
-    el.bossParticipationTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="8">보스 참여 이력을 불러오는 중입니다.</td></tr>`;
+    el.bossParticipationTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">보스 참여 이력을 불러오는 중입니다.</td></tr>`;
     return;
   }
 
   if (!rows.length) {
     const message = tabState?.loaded ? "조회된 보스 참여 이력이 없습니다." : "조회 버튼을 눌러 보스 참여 이력을 불러와주세요.";
-    el.bossParticipationTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="8">${message}</td></tr>`;
+    el.bossParticipationTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">${message}</td></tr>`;
     return;
   }
 
@@ -2849,10 +2851,91 @@ function renderBossParticipationTable() {
         <td>${escapeHtml(row.cutByNickname)}</td>
         <td class="is-right">${formatNumber(participantNames.length)}</td>
         <td class="boss-participation-participants-cell">${escapeHtml(participantNames.length ? participantNames.join(", ") : "-")}</td>
-        <td>${escapeHtml(formatBossParticipationDateTime(row.nextSpawnTime))}</td>
       </tr>
     `;
   }).join("");
+}
+
+
+function handleBossParticipationExport() {
+  const rows = state.bossParticipation?.rows || [];
+  if (!rows.length) {
+    alert("엑셀 저장할 보스 참여 이력이 없습니다.");
+    return;
+  }
+
+  const exportRows = rows.map((row) => {
+    const dateTime = getBossParticipationKstDateTimeParts(row.cutTime);
+    const participantNames = row.participants
+      .map((participant) => String(participant.discord_nickname || "").trim())
+      .filter(Boolean);
+
+    return {
+      날짜: dateTime.date,
+      시간: dateTime.time,
+      보스: row.bossName === "-" ? "" : row.bossName,
+      컷자: row.cutByNickname === "-" ? "" : row.cutByNickname,
+      참여자: participantNames.join(", ")
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(exportRows, { header: ["날짜", "시간", "보스", "컷자", "참여자"] });
+  worksheet["!cols"] = [
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 50 }
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "보스로그");
+  XLSX.writeFile(workbook, `${getBossParticipationExportFileName()}.xlsx`);
+}
+
+function getBossParticipationExportFileName() {
+  const rows = state.bossParticipation?.rows || [];
+  const rowDates = rows
+    .map((row) => getBossParticipationKstDateTimeParts(row.cutTime).date)
+    .filter(Boolean)
+    .sort();
+  const startDate = state.bossParticipation?.startDate || rowDates[0] || "0000-00-00";
+  const endDate = state.bossParticipation?.endDate || rowDates[rowDates.length - 1] || "0000-00-00";
+  return `보스로그 ${formatBossParticipationFileDate(startDate)}-${formatBossParticipationFileDate(endDate)}`;
+}
+
+function formatBossParticipationFileDate(value) {
+  const digits = String(value || "").replace(/[^0-9]/g, "");
+  return digits || "00000000";
+}
+
+function getBossParticipationKstDateTimeParts(value) {
+  if (!value) return { date: "", time: "" };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { date: "", time: "" };
+
+  const formatter = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(date);
+  const map = {};
+  parts.forEach((part) => {
+    map[part.type] = part.value;
+  });
+
+  const hour = map.hour === "24" ? "00" : map.hour;
+  return {
+    date: `${map.year}-${map.month}-${map.day}`,
+    time: `${hour}:${map.minute}:${map.second}`
+  };
 }
 
 function getBossParticipationRecordTypeText(recordType) {
