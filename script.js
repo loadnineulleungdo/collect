@@ -2,8 +2,6 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://wddaondcevbcjvopbizq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_zL2wP5o0XSvEjW1y9KOhMw_VpXt6h00";
-const BOSS_SUPABASE_URL = "https://ijefdhqxhokyiodgjjct.supabase.co";
-const BOSS_SUPABASE_ANON_KEY = "sb_publishable__lSPCq2eXCqO299El9fCTA_5vnLhXvV";
 const APP_SETTINGS_TABLE = "app_settings";
 const ADMIN_PASSWORD_KEY = "admin_password";
 let adminPassword = "";
@@ -17,16 +15,11 @@ const ACCESSORY_PARTS = [
 ];
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const bossSupabase = BOSS_SUPABASE_URL && BOSS_SUPABASE_ANON_KEY
-  ? createClient(BOSS_SUPABASE_URL, BOSS_SUPABASE_ANON_KEY)
-  : null;
 const DISTRIBUTION_BOSS_RULES_TABLE = "distribution_boss_rules";
 
 const state = {
   activeTab: "power",
   distribution: null,
-  history: null,
-  bossParticipation: null,
   pendingManageType: null,
   pendingEditMemberId: null,
   itemManageTarget: null,
@@ -62,8 +55,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindElements();
   bindEvents();
   initializeDistributionState();
-  initializeHistoryState();
-  initializeBossParticipationState();
   bindNewDistributionUi();
   await loadAdminPassword();
   updateTabUi();
@@ -141,44 +132,6 @@ function bindElements() {
   el.mainTableSearch = document.getElementById("mainTableSearch");
   el.summaryTableWrap = document.getElementById("summaryTableWrap");
   el.distributionContent = document.getElementById("distributionContent");
-  el.historyContent = document.getElementById("historyContent");
-  el.historyHeaderActions = document.getElementById("historyHeaderActions");
-  el.historyDeleteBtn = document.getElementById("historyDeleteBtn");
-  el.historyExportBtn = document.getElementById("historyExportBtn");
-  el.historyDateInput = document.getElementById("historyDateInput");
-  el.historySortSelect = document.getElementById("historySortSelect");
-  el.historySearchBtn = document.getElementById("historySearchBtn");
-  el.historyListTableHead = document.getElementById("historyListTableHead");
-  el.historyListTableBody = document.getElementById("historyListTableBody");
-  el.historyMemberTableHead = document.getElementById("historyMemberTableHead");
-  el.historyMemberTableBody = document.getElementById("historyMemberTableBody");
-  el.historyLogTableHead = document.getElementById("historyLogTableHead");
-  el.historyLogTableBody = document.getElementById("historyLogTableBody");
-  el.historySummaryPeriod = document.getElementById("historySummaryPeriod");
-  el.historySummaryActualDiamond = document.getElementById("historySummaryActualDiamond");
-  el.historySummaryTotalPoints = document.getElementById("historySummaryTotalPoints");
-  el.historySummaryPerPoint = document.getElementById("historySummaryPerPoint");
-  el.historySummaryRemaining = document.getElementById("historySummaryRemaining");
-  el.historySavedAt = document.getElementById("historySavedAt");
-  el.historyTotalDiamond = document.getElementById("historyTotalDiamond");
-  el.historyGuildFeePercent = document.getElementById("historyGuildFeePercent");
-  el.historyGuildMasterPercent = document.getElementById("historyGuildMasterPercent");
-  el.historyManagerPercent = document.getElementById("historyManagerPercent");
-  el.bossParticipationContent = document.getElementById("bossParticipationContent");
-  el.bossParticipationStartDateInput = document.getElementById("bossParticipationStartDateInput");
-  el.bossParticipationEndDateInput = document.getElementById("bossParticipationEndDateInput");
-  el.bossParticipationBossInput = document.getElementById("bossParticipationBossInput");
-  el.bossParticipationParticipantInput = document.getElementById("bossParticipationParticipantInput");
-  el.bossParticipationSearchBtn = document.getElementById("bossParticipationSearchBtn");
-  el.bossParticipationResetBtn = document.getElementById("bossParticipationResetBtn");
-  el.bossParticipationExportBtn = document.getElementById("bossParticipationExportBtn");
-  el.bossParticipationSummaryTotalRecords = document.getElementById("bossParticipationSummaryTotalRecords");
-  el.bossParticipationSummaryCutRecords = document.getElementById("bossParticipationSummaryCutRecords");
-  el.bossParticipationSummaryMungRecords = document.getElementById("bossParticipationSummaryMungRecords");
-  el.bossParticipationSummaryParticipants = document.getElementById("bossParticipationSummaryParticipants");
-  el.bossParticipationSummaryUniqueParticipants = document.getElementById("bossParticipationSummaryUniqueParticipants");
-  el.bossParticipationTableHead = document.getElementById("bossParticipationTableHead");
-  el.bossParticipationTableBody = document.getElementById("bossParticipationTableBody");
   el.bulkSaveOverlay = document.getElementById("bulkSaveOverlay");
   el.bulkSavePercent = document.getElementById("bulkSavePercent");
   el.bulkSaveBarFill = document.getElementById("bulkSaveBarFill");
@@ -195,17 +148,6 @@ function bindEvents() {
       updateTabUi();
 
       if (nextTab === "distribution") {
-        renderAll();
-        return;
-      }
-
-      if (nextTab === "history") {
-        await loadHistoryData();
-        renderAll();
-        return;
-      }
-
-      if (nextTab === "bossParticipation") {
         renderAll();
         return;
       }
@@ -240,7 +182,6 @@ function bindEvents() {
   el.summaryTableHead.addEventListener("click", handleSummaryTableHeadClick);
   el.summaryTableBody.addEventListener("click", handleSummaryTableClick);
   el.summaryTableBody.addEventListener("input", handleSummaryTableInput);
-  el.historyListTableBody?.addEventListener("click", handleHistoryListClick);
 
   el.adminModeBtn.addEventListener("click", () => openModal(el.adminModeModalBackdrop));
   el.adminModeCloseBtn.addEventListener("click", () => closeModal(el.adminModeModalBackdrop));
@@ -279,12 +220,6 @@ function bindEvents() {
   el.importCancelBtn.addEventListener("click", closeImportModal);
   el.importPreviewBtn.addEventListener("click", handleImportPreview);
   el.importApplyBtn.addEventListener("click", handleImportApply);
-  el.historySearchBtn.addEventListener("click", handleHistorySearch);
-  el.historyDeleteBtn.addEventListener("click", handleHistoryDelete);
-  el.historyExportBtn.addEventListener("click", handleHistoryExport);
-  el.bossParticipationSearchBtn?.addEventListener("click", handleBossParticipationSearch);
-  el.bossParticipationResetBtn?.addEventListener("click", handleBossParticipationReset);
-  el.bossParticipationExportBtn?.addEventListener("click", handleBossParticipationExport);
 
   el.addMemberBtn.addEventListener("click", addMember);
   el.addItemBtn.addEventListener("click", addItem);
@@ -313,31 +248,20 @@ function updateTabUi() {
   });
 
   const isDistribution = state.activeTab === "distribution";
-  const isHistory = state.activeTab === "history";
-  const isBossParticipation = state.activeTab === "bossParticipation";
   const isAccessory = state.activeTab === "accessory";
   const isBoss = state.activeTab === "boss";
   const isPower = state.activeTab === "power";
   const isBusy = state.isBulkSaving;
 
   el.mainCard.classList.remove("hidden");
-  el.mainActions.classList.toggle("hidden", isDistribution || isHistory || isBossParticipation);
-  el.summaryTableWrap.classList.toggle("hidden", isDistribution || isHistory || isBossParticipation);
+  el.mainActions.classList.toggle("hidden", isDistribution);
+  el.summaryTableWrap.classList.toggle("hidden", isDistribution);
   el.distributionContent.classList.toggle("hidden", !isDistribution);
-  el.historyContent.classList.toggle("hidden", !isHistory);
-  el.bossParticipationContent?.classList.toggle("hidden", !isBossParticipation);
-  el.mainTableSearch.classList.toggle("hidden", isDistribution || isHistory || isBossParticipation);
-  el.historyHeaderActions.classList.toggle("hidden", !isHistory);
+  el.mainTableSearch.classList.toggle("hidden", isDistribution);
 
   if (isDistribution) {
     el.mainCardTitle.textContent = "분배";
     el.tableGuideText.textContent = "보스로그 엑셀을 기준으로 기간 내 참여 점수를 집계하여 분배 다이아를 계산합니다.";
-  } else if (isHistory) {
-    el.mainCardTitle.textContent = "분배 이력";
-    el.tableGuideText.textContent = "저장된 분배 이력을 날짜 기준으로 조회하는 화면입니다.";
-  } else if (isBossParticipation) {
-    el.mainCardTitle.textContent = "보스 참여 이력";
-    el.tableGuideText.textContent = "보스봇 DB의 컷 기록과 참여자 정보를 조회하는 화면입니다.";
   } else {
     el.mainCardTitle.textContent = "전체 현황";
   }
@@ -350,18 +274,18 @@ function updateTabUi() {
   el.mountManageBtn.disabled = isBusy;
   el.accessoryManageBtn.disabled = isBusy;
   el.bossManageBtn.disabled = isBusy;
-  if (el.itemManageBtn) el.itemManageBtn.disabled = isDistribution || isHistory || isBossParticipation || isPower || isBusy;
-  el.bulkEditBtn.disabled = isDistribution || isHistory || isBossParticipation || isBusy;
+  if (el.itemManageBtn) el.itemManageBtn.disabled = isDistribution || isPower || isBusy;
+  el.bulkEditBtn.disabled = isDistribution || isBusy;
   el.bulkSaveBtn.disabled = isBusy;
   el.bulkCancelBtn.disabled = isBusy;
-  el.searchBtn.disabled = isDistribution || isHistory || isBossParticipation || isBusy;
-  el.resetBtn.disabled = isDistribution || isHistory || isBossParticipation || isBusy;
-  el.searchInput.disabled = isDistribution || isHistory || isBossParticipation || isBusy;
-  el.bossSearchInput.disabled = !isBoss || isDistribution || isHistory || isBossParticipation || isBusy;
-  el.importOpenBtn.disabled = isHistory || isDistribution || isBossParticipation || isPower || isBusy;
+  el.searchBtn.disabled = isDistribution || isBusy;
+  el.resetBtn.disabled = isDistribution || isBusy;
+  el.searchInput.disabled = isDistribution || isBusy;
+  el.bossSearchInput.disabled = !isBoss || isDistribution || isBusy;
+  el.importOpenBtn.disabled = isDistribution || isPower || isBusy;
 
   el.bossSearchInput.classList.toggle("hidden", !isBoss);
-  if (el.itemManageBtn) el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution || isHistory || isBossParticipation);
+  if (el.itemManageBtn) el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution);
   el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory"));
 
   updateItemManageUi();
@@ -819,16 +743,6 @@ function renderAll() {
 
   if (state.activeTab === "distribution") {
     renderDistributionTab();
-    return;
-  }
-
-  if (state.activeTab === "history") {
-    renderHistoryTab();
-    return;
-  }
-
-  if (state.activeTab === "bossParticipation") {
-    renderBossParticipationTab();
     return;
   }
 
@@ -2270,732 +2184,6 @@ function setText(id, value) {
   }
 }
 
-
-async function loadHistoryData() {
-  const sortKey = state.history?.sortKey || "saved_desc";
-  const filterDate = String(state.history?.filterDate || "").trim();
-
-  let query = supabase
-    .from("distribution_histories")
-    .select("id, period_start, period_end, total_diamond, guild_fee_percent, guild_master_percent, manager_percent, guild_fee_amount, guild_master_amount, manager_amount, actual_diamond, total_points, diamond_per_point, remaining_diamond, workbook_name, saved_at, created_at, updated_at")
-    .limit(2000);
-
-  if (filterDate) {
-    query = query.lte("period_start", filterDate).gte("period_end", filterDate);
-  }
-
-  if (sortKey === "saved_asc") {
-    query = query.order("saved_at", { ascending: true });
-  } else if (sortKey === "period_desc") {
-    query = query.order("period_end", { ascending: false }).order("period_start", { ascending: false });
-  } else if (sortKey === "period_asc") {
-    query = query.order("period_start", { ascending: true }).order("period_end", { ascending: true });
-  } else {
-    query = query.order("saved_at", { ascending: false });
-  }
-
-  const historyRes = await query;
-  if (historyRes.error) {
-    alert(`분배 이력 조회 중 오류가 발생했습니다.
-${historyRes.error.message}`);
-    return;
-  }
-
-  const historyRows = historyRes.data ?? [];
-  const nextItems = historyRows.map((row) => ({
-    id: row.id,
-    savedAt: formatDateTime(row.saved_at),
-    startDate: row.period_start,
-    endDate: row.period_end,
-    totalDiamond: Number(row.total_diamond ?? 0),
-    guildFeePercent: Number(row.guild_fee_percent ?? 0),
-    guildMasterPercent: Number(row.guild_master_percent ?? 0),
-    managerPercent: Number(row.manager_percent ?? 0),
-    actualDiamond: Number(row.actual_diamond ?? 0),
-    totalPoints: Number(row.total_points ?? 0),
-    diamondPerPoint: Number(row.diamond_per_point ?? 0),
-    remainingDiamond: Number(row.remaining_diamond ?? 0),
-    workbookName: row.workbook_name || ""
-  }));
-
-  const visibleIds = new Set(nextItems.map((item) => item.id));
-  const nextCache = {};
-  Object.entries(state.history?.detailCache || {}).forEach(([historyId, detail]) => {
-    if (visibleIds.has(historyId)) {
-      nextCache[historyId] = detail;
-    }
-  });
-
-  state.history.items = nextItems;
-  state.history.detailCache = nextCache;
-
-  if (state.history.selectedId && !visibleIds.has(state.history.selectedId)) {
-    state.history.selectedId = null;
-  }
-}
-
-function initializeHistoryState() {
-  state.history = {
-    filterDate: "",
-    sortKey: "saved_desc",
-    selectedId: null,
-    items: [],
-    detailCache: {},
-    loadingDetailId: null
-  };
-}
-
-function renderHistoryTab() {
-  renderHistoryInputs();
-  renderHistoryListTable();
-  renderHistoryDetail();
-}
-
-function renderHistoryInputs() {
-  el.historyDateInput.value = state.history.filterDate || "";
-  el.historySortSelect.value = state.history.sortKey || "saved_desc";
-}
-
-function getFilteredHistoryItems() {
-  const filterDate = String(state.history.filterDate || "").trim();
-  const sortKey = state.history.sortKey || "saved_desc";
-  let items = [...(state.history.items || [])];
-
-  if (filterDate) {
-    items = items.filter((item) => item.startDate <= filterDate && item.endDate >= filterDate);
-  }
-
-  items.sort((left, right) => {
-    if (sortKey === "saved_asc") return String(left.savedAt).localeCompare(String(right.savedAt));
-    if (sortKey === "period_desc") return String(right.endDate).localeCompare(String(left.endDate));
-    if (sortKey === "period_asc") return String(left.startDate).localeCompare(String(right.startDate));
-    return String(right.savedAt).localeCompare(String(left.savedAt));
-  });
-
-  return items;
-}
-
-function renderHistoryListTable() {
-  el.historyListTableHead.innerHTML = `
-    <tr>
-      <th class="is-center">No</th>
-      <th>저장일시</th>
-      <th>대상 기간</th>
-      <th class="is-right">실제 분배 다이아</th>
-      <th class="is-right">전체 참여점수</th>
-      <th class="is-right">남은 다이아</th>
-    </tr>
-  `;
-
-  const items = getFilteredHistoryItems();
-  if (!items.length) {
-    el.historyListTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">조회된 분배 이력이 없습니다.</td></tr>`;
-    return;
-  }
-
-  if (state.history.selectedId && !items.some((item) => item.id === state.history.selectedId)) {
-    state.history.selectedId = null;
-  }
-
-  el.historyListTableBody.innerHTML = items.map((item, index) => `
-    <tr class="${item.id === state.history.selectedId ? "history-selected-row" : ""}" data-role="history-select-row" data-history-id="${item.id}">
-      <td class="is-center">${index + 1}</td>
-      <td>${escapeHtml(item.savedAt)}</td>
-      <td>${escapeHtml(`${item.startDate} ~ ${item.endDate}`)}</td>
-      <td class="is-right">${formatNumber(item.actualDiamond)}</td>
-      <td class="is-right">${formatNumber(item.totalPoints)}</td>
-      <td class="is-right">${formatNumber(item.remainingDiamond)}</td>
-    </tr>
-  `).join("");
-}
-
-async function loadHistoryDetail(historyId, forceReload = false) {
-  const targetId = String(historyId || "").trim();
-  if (!targetId) return null;
-
-  if (!forceReload && state.history?.detailCache?.[targetId]) {
-    return state.history.detailCache[targetId];
-  }
-
-  state.history.loadingDetailId = targetId;
-  renderHistoryDetail();
-
-  const [memberRes, logRes] = await Promise.all([
-    supabase
-      .from("distribution_history_members")
-      .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
-      .eq("distribution_history_id", targetId)
-      .order("display_order", { ascending: true }),
-    supabase
-      .from("distribution_history_logs")
-      .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
-      .eq("distribution_history_id", targetId)
-      .order("display_order", { ascending: true })
-  ]);
-
-  if (memberRes.error) {
-    state.history.loadingDetailId = null;
-    alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
-${memberRes.error.message}`);
-    return null;
-  }
-
-  if (logRes.error) {
-    state.history.loadingDetailId = null;
-    alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
-${logRes.error.message}`);
-    return null;
-  }
-
-  const detail = {
-    memberRows: (memberRes.data ?? []).map((row) => ({
-      memberId: row.member_id ?? null,
-      memberName: row.member_name,
-      points: Number(row.points ?? 0),
-      ratio: Number(row.ratio ?? 0),
-      rawDiamond: Number(row.raw_diamond ?? 0),
-      finalDiamond: Number(row.final_diamond ?? 0),
-      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
-    })),
-    logRows: (logRes.data ?? []).map((row) => ({
-      date: row.log_date || "",
-      time: row.log_time || "",
-      boss: row.boss_name || "",
-      cutter: row.cutter_name || "",
-      participants: Array.isArray(row.participants)
-        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
-        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
-    }))
-  };
-
-  state.history.detailCache[targetId] = detail;
-  if (state.history.loadingDetailId === targetId) {
-    state.history.loadingDetailId = null;
-  }
-  return detail;
-}
-
-function getSelectedHistoryDetail() {
-  const selectedId = String(state.history?.selectedId || "").trim();
-  if (!selectedId) return null;
-  return state.history?.detailCache?.[selectedId] ?? null;
-}
-
-function getSelectedHistoryItem() {
-  const items = getFilteredHistoryItems();
-  if (!state.history.selectedId) return null;
-  return items.find((item) => item.id === state.history.selectedId) || null;
-}
-
-function renderHistoryDetail() {
-  const item = getSelectedHistoryItem();
-
-  if (!item) {
-    el.historySummaryPeriod.textContent = "-";
-    el.historySummaryActualDiamond.textContent = "0";
-    el.historySummaryTotalPoints.textContent = "0";
-    el.historySummaryPerPoint.textContent = "0";
-    el.historySummaryRemaining.textContent = "0";
-    el.historySavedAt.textContent = "-";
-    el.historyTotalDiamond.textContent = "0";
-    el.historyGuildFeePercent.textContent = "0";
-    el.historyGuildMasterPercent.textContent = "0";
-    el.historyManagerPercent.textContent = "0";
-    renderHistoryMemberTable([]);
-    renderHistoryLogTable([]);
-    return;
-  }
-
-  el.historySummaryPeriod.textContent = `${item.startDate} ~ ${item.endDate}`;
-  el.historySummaryActualDiamond.textContent = formatNumber(item.actualDiamond);
-  el.historySummaryTotalPoints.textContent = formatNumber(item.totalPoints);
-  el.historySummaryPerPoint.textContent = formatDecimal(item.diamondPerPoint, 1);
-  el.historySummaryRemaining.textContent = formatNumber(item.remainingDiamond);
-  el.historySavedAt.textContent = item.savedAt;
-  el.historyTotalDiamond.textContent = formatNumber(item.totalDiamond);
-  el.historyGuildFeePercent.textContent = String(item.guildFeePercent);
-  el.historyGuildMasterPercent.textContent = String(item.guildMasterPercent);
-  el.historyManagerPercent.textContent = String(item.managerPercent);
-
-  const detail = getSelectedHistoryDetail();
-  const isLoading = state.history?.loadingDetailId === item.id && !detail;
-
-  if (isLoading) {
-    renderHistoryMemberTable(null);
-    renderHistoryLogTable(null);
-    return;
-  }
-
-  renderHistoryMemberTable(detail?.memberRows || []);
-  renderHistoryLogTable(detail?.logRows || []);
-}
-
-function renderHistoryMemberTable(rows) {
-  el.historyMemberTableHead.innerHTML = `
-    <tr>
-      <th class="is-center">No</th>
-      <th>길드원</th>
-      <th class="is-right">참여점수</th>
-      <th class="is-right">참여비율</th>
-      <th class="is-right">계산 다이아</th>
-      <th class="is-right">최종 분배 다이아</th>
-      <th>비고</th>
-    </tr>
-  `;
-
-  if (rows === null) {
-    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">상세 데이터를 불러오는 중입니다.</td></tr>`;
-    return;
-  }
-
-  if (!rows.length) {
-    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">표시할 길드원별 분배 결과가 없습니다.</td></tr>`;
-    return;
-  }
-
-  el.historyMemberTableBody.innerHTML = rows.map((row, index) => `
-    <tr class="${row.note === "탈퇴한 길드원" ? "distribution-retired-row" : ""}">
-      <td class="is-center">${index + 1}</td>
-      <td>${escapeHtml(row.memberName)}</td>
-      <td class="is-right">${formatNumber(row.points)}</td>
-      <td class="is-right">${formatPercent(row.ratio)}</td>
-      <td class="is-right">${formatDecimal(row.rawDiamond, 1)}</td>
-      <td class="is-right">${formatNumber(row.finalDiamond)}</td>
-      <td>${escapeHtml(row.note || "-")}</td>
-    </tr>
-  `).join("");
-}
-
-function renderHistoryLogTable(rows) {
-  el.historyLogTableHead.innerHTML = `
-    <tr>
-      <th class="is-center">No</th>
-      <th>날짜</th>
-      <th>시간</th>
-      <th>보스</th>
-      <th>컷자</th>
-      <th>참여자</th>
-    </tr>
-  `;
-
-  if (rows === null) {
-    el.historyLogTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">상세 데이터를 불러오는 중입니다.</td></tr>`;
-    return;
-  }
-
-  if (!rows.length) {
-    el.historyLogTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">표시할 보스로그가 없습니다.</td></tr>`;
-    return;
-  }
-
-  el.historyLogTableBody.innerHTML = rows.map((row, index) => `
-    <tr>
-      <td class="is-center">${index + 1}</td>
-      <td>${escapeHtml(row.date)}</td>
-      <td>${escapeHtml(row.time)}</td>
-      <td>${escapeHtml(row.boss)}</td>
-      <td>${escapeHtml(row.cutter)}</td>
-      <td>${escapeHtml((row.participants || []).join(", "))}</td>
-    </tr>
-  `).join("");
-}
-
-async function handleHistoryListClick(event) {
-  const row = event.target.closest('[data-role="history-select-row"]');
-  if (!row) return;
-  const historyId = row.dataset.historyId;
-  if (!historyId) return;
-
-  state.history.selectedId = historyId;
-  renderHistoryTab();
-  await loadHistoryDetail(historyId);
-  renderHistoryTab();
-}
-
-async function handleHistorySearch() {
-  state.history.filterDate = String(el.historyDateInput.value || "").trim();
-  state.history.sortKey = String(el.historySortSelect.value || "saved_desc").trim();
-  await loadHistoryData();
-  renderHistoryTab();
-}
-
-async function handleHistoryDelete() {
-  const selectedId = String(state.history?.selectedId || "").trim();
-  if (!selectedId) {
-    alert("삭제할 분배 이력을 먼저 선택해주세요.");
-    return;
-  }
-
-  const selectedItem = getSelectedHistoryItem();
-  const periodText = selectedItem ? `${selectedItem.startDate} ~ ${selectedItem.endDate}` : "선택 이력";
-  const confirmed = window.confirm(`${periodText} 분배 이력을 삭제하시겠습니까?`);
-  if (!confirmed) return;
-
-  const deleteRes = await supabase
-    .from("distribution_histories")
-    .delete()
-    .eq("id", selectedId);
-
-  if (deleteRes.error) {
-    alert(`분배 이력 삭제 중 오류가 발생했습니다.
-${deleteRes.error.message}`);
-    return;
-  }
-
-  state.history.selectedId = null;
-  delete state.history.detailCache[selectedId];
-  await loadHistoryData();
-  renderHistoryTab();
-  alert("분배 이력이 삭제되었습니다.");
-}
-
-function handleHistoryExport() {
-  alert("분배 이력 엑셀 저장 기능은 다음 단계에서 연결할 예정입니다.");
-}
-
-
-function initializeBossParticipationState() {
-  state.bossParticipation = {
-    startDate: "",
-    endDate: "",
-    bossKeyword: "",
-    participantKeyword: "",
-    rows: [],
-    loading: false,
-    loaded: false
-  };
-}
-
-async function handleBossParticipationSearch() {
-  state.bossParticipation.startDate = String(el.bossParticipationStartDateInput?.value || "").trim();
-  state.bossParticipation.endDate = String(el.bossParticipationEndDateInput?.value || "").trim();
-  state.bossParticipation.bossKeyword = String(el.bossParticipationBossInput?.value || "").trim();
-  state.bossParticipation.participantKeyword = String(el.bossParticipationParticipantInput?.value || "").trim();
-  await loadBossParticipationData();
-  renderBossParticipationTab();
-}
-
-async function handleBossParticipationReset() {
-  state.bossParticipation.startDate = "";
-  state.bossParticipation.endDate = "";
-  state.bossParticipation.bossKeyword = "";
-  state.bossParticipation.participantKeyword = "";
-  state.bossParticipation.rows = [];
-  state.bossParticipation.loaded = false;
-  state.bossParticipation.loading = false;
-  if (el.bossParticipationStartDateInput) el.bossParticipationStartDateInput.value = "";
-  if (el.bossParticipationEndDateInput) el.bossParticipationEndDateInput.value = "";
-  if (el.bossParticipationBossInput) el.bossParticipationBossInput.value = "";
-  if (el.bossParticipationParticipantInput) el.bossParticipationParticipantInput.value = "";
-  renderBossParticipationTab();
-}
-
-async function loadBossParticipationData() {
-  const tabState = state.bossParticipation;
-  if (!tabState) return;
-
-  tabState.loading = true;
-  renderBossParticipationTab();
-
-  try {
-    if (!bossSupabase) {
-      throw new Error("보스봇 Supabase URL과 ANON KEY를 script 파일에 설정해주세요.");
-    }
-
-    let query = bossSupabase
-      .from("boss_kill_records")
-      .select("id, boss_id, boss_name, record_type, cut_time, cut_by_nickname, cut_by_discord_id, cut_source, next_spawn_time, created_at")
-      .order("cut_time", { ascending: false })
-      .limit(2000);
-
-    if (tabState.startDate) {
-      query = query.gte("cut_time", kstDateBoundaryToIso(tabState.startDate, false));
-    }
-
-    if (tabState.endDate) {
-      query = query.lt("cut_time", kstDateBoundaryToIso(tabState.endDate, true));
-    }
-
-    if (tabState.bossKeyword) {
-      query = query.ilike("boss_name", `%${escapeSupabaseLike(tabState.bossKeyword)}%`);
-    }
-
-    const recordRes = await query;
-    if (recordRes.error) {
-      throw new Error(`보스 컷 기록 조회 중 오류가 발생했습니다.\n${recordRes.error.message}`);
-    }
-
-    const records = recordRes.data ?? [];
-    const recordIds = records.map((row) => row.id).filter(Boolean);
-    const participants = await loadBossParticipantsByRecordIds(recordIds);
-    const participantMap = groupBossParticipantsByRecordId(participants);
-    const participantKeyword = normalizeSearchText(tabState.participantKeyword);
-
-    let rows = records.map((record) => {
-      const rowParticipants = participantMap.get(record.id) || [];
-      return {
-        id: record.id,
-        bossName: record.boss_name || "-",
-        recordType: record.record_type || "-",
-        cutTime: record.cut_time || "",
-        cutByNickname: record.cut_by_nickname || "-",
-        cutSource: record.cut_source || "-",
-        nextSpawnTime: record.next_spawn_time || "",
-        participants: rowParticipants
-      };
-    });
-
-    if (participantKeyword) {
-      rows = rows.filter((row) => row.participants.some((participant) => {
-        return normalizeSearchText(participant.discord_nickname).includes(participantKeyword);
-      }));
-    }
-
-    tabState.rows = rows;
-    tabState.loaded = true;
-  } catch (error) {
-    tabState.rows = [];
-    tabState.loaded = true;
-    alert(error.message || "보스 참여 이력 조회 중 오류가 발생했습니다.");
-  } finally {
-    tabState.loading = false;
-  }
-}
-
-async function loadBossParticipantsByRecordIds(recordIds) {
-  if (!recordIds.length) return [];
-
-  const rows = [];
-  const chunkSize = 500;
-  for (let index = 0; index < recordIds.length; index += chunkSize) {
-    const chunk = recordIds.slice(index, index + chunkSize);
-    const res = await bossSupabase
-      .from("boss_participants")
-      .select("kill_record_id, boss_id, boss_name, cut_time, discord_user_id, discord_nickname, created_at")
-      .in("kill_record_id", chunk)
-      .order("created_at", { ascending: true });
-
-    if (res.error) {
-      throw new Error(`보스 참여자 조회 중 오류가 발생했습니다.\n${res.error.message}`);
-    }
-
-    rows.push(...(res.data ?? []));
-  }
-
-  return rows;
-}
-
-function groupBossParticipantsByRecordId(participants) {
-  const map = new Map();
-  participants.forEach((participant) => {
-    const key = participant.kill_record_id;
-    if (!key) return;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(participant);
-  });
-  return map;
-}
-
-function renderBossParticipationTab() {
-  const tabState = state.bossParticipation;
-  if (!tabState) return;
-
-  renderBossParticipationInputs();
-  renderBossParticipationSummary();
-  renderBossParticipationTable();
-}
-
-function renderBossParticipationInputs() {
-  const tabState = state.bossParticipation;
-  setValueIfNeeded("bossParticipationStartDateInput", tabState.startDate || "");
-  setValueIfNeeded("bossParticipationEndDateInput", tabState.endDate || "");
-  setValueIfNeeded("bossParticipationBossInput", tabState.bossKeyword || "");
-  setValueIfNeeded("bossParticipationParticipantInput", tabState.participantKeyword || "");
-}
-
-function renderBossParticipationSummary() {
-  const rows = state.bossParticipation?.rows || [];
-  const cutRows = rows.filter((row) => row.recordType === "cut");
-  const mungRows = rows.filter((row) => row.recordType === "mung");
-  const participantNames = rows.flatMap((row) => row.participants.map((participant) => String(participant.discord_nickname || "").trim()).filter(Boolean));
-  const uniqueParticipants = new Set(participantNames.map((name) => normalizeSearchText(name)));
-
-  el.bossParticipationSummaryTotalRecords.textContent = formatNumber(rows.length);
-  el.bossParticipationSummaryCutRecords.textContent = formatNumber(cutRows.length);
-  el.bossParticipationSummaryMungRecords.textContent = formatNumber(mungRows.length);
-  el.bossParticipationSummaryParticipants.textContent = formatNumber(participantNames.length);
-  el.bossParticipationSummaryUniqueParticipants.textContent = formatNumber(uniqueParticipants.size);
-}
-
-function renderBossParticipationTable() {
-  el.bossParticipationTableHead.innerHTML = `
-    <tr>
-      <th class="is-center">No</th>
-      <th>컷 시간</th>
-      <th>보스명</th>
-      <th class="is-center">기록</th>
-      <th>컷자</th>
-      <th class="is-right">참여자 수</th>
-      <th>참여자</th>
-    </tr>
-  `;
-
-  const tabState = state.bossParticipation;
-  const rows = tabState?.rows || [];
-
-  if (tabState?.loading) {
-    el.bossParticipationTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">보스 참여 이력을 불러오는 중입니다.</td></tr>`;
-    return;
-  }
-
-  if (!rows.length) {
-    const message = tabState?.loaded ? "조회된 보스 참여 이력이 없습니다." : "조회 버튼을 눌러 보스 참여 이력을 불러와주세요.";
-    el.bossParticipationTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">${message}</td></tr>`;
-    return;
-  }
-
-  el.bossParticipationTableBody.innerHTML = rows.map((row, index) => {
-    const participantNames = row.participants.map((participant) => participant.discord_nickname || "-").filter(Boolean);
-    const recordClass = row.recordType === "mung" ? "boss-participation-mung-row" : "";
-    return `
-      <tr class="${recordClass}">
-        <td class="is-center">${index + 1}</td>
-        <td>${escapeHtml(formatBossParticipationDateTime(row.cutTime))}</td>
-        <td>${escapeHtml(row.bossName)}</td>
-        <td class="is-center"><span class="boss-participation-badge ${row.recordType === "mung" ? "is-mung" : "is-cut"}">${escapeHtml(getBossParticipationRecordTypeText(row.recordType))}</span></td>
-        <td>${escapeHtml(row.cutByNickname)}</td>
-        <td class="is-right">${formatNumber(participantNames.length)}</td>
-        <td class="boss-participation-participants-cell">${escapeHtml(participantNames.length ? participantNames.join(", ") : "-")}</td>
-      </tr>
-    `;
-  }).join("");
-}
-
-
-function handleBossParticipationExport() {
-  const rows = state.bossParticipation?.rows || [];
-  if (!rows.length) {
-    alert("엑셀 저장할 보스 참여 이력이 없습니다.");
-    return;
-  }
-
-  const exportRows = rows.map((row) => {
-    const dateTime = getBossParticipationKstDateTimeParts(row.cutTime);
-    const participantNames = row.participants
-      .map((participant) => String(participant.discord_nickname || "").trim())
-      .filter(Boolean);
-
-    return {
-      날짜: dateTime.date,
-      시간: dateTime.time,
-      보스: row.bossName === "-" ? "" : row.bossName,
-      컷자: row.cutByNickname === "-" ? "" : row.cutByNickname,
-      참여자: participantNames.join(", ")
-    };
-  });
-
-  const worksheet = XLSX.utils.json_to_sheet(exportRows, { header: ["날짜", "시간", "보스", "컷자", "참여자"] });
-  worksheet["!cols"] = [
-    { wch: 12 },
-    { wch: 10 },
-    { wch: 18 },
-    { wch: 16 },
-    { wch: 50 }
-  ];
-
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "보스로그");
-  XLSX.writeFile(workbook, `${getBossParticipationExportFileName()}.xlsx`);
-}
-
-function getBossParticipationExportFileName() {
-  const rows = state.bossParticipation?.rows || [];
-  const rowDates = rows
-    .map((row) => getBossParticipationKstDateTimeParts(row.cutTime).date)
-    .filter(Boolean)
-    .sort();
-  const startDate = state.bossParticipation?.startDate || rowDates[0] || "0000-00-00";
-  const endDate = state.bossParticipation?.endDate || rowDates[rowDates.length - 1] || "0000-00-00";
-  return `보스로그 ${formatBossParticipationFileDate(startDate)}-${formatBossParticipationFileDate(endDate)}`;
-}
-
-function formatBossParticipationFileDate(value) {
-  const digits = String(value || "").replace(/[^0-9]/g, "");
-  return digits || "00000000";
-}
-
-function getBossParticipationKstDateTimeParts(value) {
-  if (!value) return { date: "", time: "" };
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return { date: "", time: "" };
-
-  const formatter = new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
-  });
-
-  const parts = formatter.formatToParts(date);
-  const map = {};
-  parts.forEach((part) => {
-    map[part.type] = part.value;
-  });
-
-  const hour = map.hour === "24" ? "00" : map.hour;
-  return {
-    date: `${map.year}-${map.month}-${map.day}`,
-    time: `${hour}:${map.minute}:${map.second}`
-  };
-}
-
-function getBossParticipationRecordTypeText(recordType) {
-  if (recordType === "cut") return "컷";
-  if (recordType === "mung") return "멍";
-  return recordType || "-";
-}
-
-function formatBossParticipationDateTime(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-
-  const formatter = new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  });
-
-  const parts = formatter.formatToParts(date);
-  const map = {};
-  parts.forEach((part) => {
-    map[part.type] = part.value;
-  });
-
-  const hour = map.hour === "24" ? "00" : map.hour;
-  return `${map.month}-${map.day} ${hour}:${map.minute}`;
-}
-
-function kstDateBoundaryToIso(dateText, isEndBoundary) {
-  const [year, month, day] = String(dateText).split("-").map(Number);
-  const addDay = isEndBoundary ? 1 : 0;
-  return new Date(Date.UTC(year, month - 1, day + addDay, -9, 0, 0)).toISOString();
-}
-
-function escapeSupabaseLike(value) {
-  return String(value ?? "").replace(/[%_]/g, "");
-}
-
-function normalizeSearchText(value) {
-  return String(value ?? "").trim().replace(/\s+/g, "").toLowerCase();
-}
 
 function renderGuildManageTable() {
   if (state.members.length === 0) {
