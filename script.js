@@ -1279,6 +1279,7 @@ function createDistributionGroupState(type) {
   return {
     type,
     deductions: [],
+    appliedDeductions: [],
     logs: [],
     results: [],
     summary: createDistributionSummary(),
@@ -1406,7 +1407,11 @@ function renderDistributionDeductionTable(groupKey) {
     return;
   }
 
-  body.innerHTML = rows.map((row) => `
+  body.innerHTML = rows.map((row) => {
+    const appliedRow = findAppliedDistributionDeductionRow(groupKey, row.id);
+    const deductionAmount = appliedRow ? getDistributionDeductionAmount(groupKey, appliedRow) : 0;
+
+    return `
     <tr>
       <td><input class="newdist-input-sm" type="text" data-role="newdist-deduction-name" data-group="${groupKey}" data-id="${row.id}" value="${escapeAttr(row.name)}"></td>
       <td>
@@ -1416,10 +1421,11 @@ function renderDistributionDeductionTable(groupKey) {
         </select>
       </td>
       <td><input class="newdist-input-sm" type="number" min="0" step="0.01" data-role="newdist-deduction-value" data-group="${groupKey}" data-id="${row.id}" value="${escapeAttr(row.value ?? "")}"></td>
-      <td class="right">${formatNumber(getDistributionDeductionAmount(groupKey, row))}</td>
+      <td class="right">${formatNumber(deductionAmount)}</td>
       <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-delete-deduction" data-group="${groupKey}" data-id="${row.id}">삭제</button></td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function renderDistributionLogs(groupKey) {
@@ -1517,7 +1523,7 @@ function renderDistributionNameRules() {
 function calculateDistributionGroupSummary(groupKey) {
   const distribution = state.distribution;
   const assigned = getDistributionAssignedAmounts()[groupKey];
-  const deductions = distribution[groupKey].deductions;
+  const deductions = distribution[groupKey].appliedDeductions;
   const deductionTotal = deductions.reduce((sum, row) => sum + getDistributionDeductionAmount(groupKey, row), 0);
   const actualDiamond = Math.max(0, assigned - deductionTotal);
 
@@ -1590,6 +1596,7 @@ function bindNewDistributionUi() {
   ["mainland", "world"].forEach((groupKey) => {
     const upper = groupKey === "mainland" ? "Mainland" : "World";
     document.getElementById(`newdist${upper}AddDeductionBtn`)?.addEventListener("click", () => handleDistributionAddDeduction(groupKey));
+    document.getElementById(`newdist${upper}ApplyDeductionBtn`)?.addEventListener("click", () => handleDistributionApplyDeductions(groupKey));
     document.getElementById(`newdist${upper}RefreshBtn`)?.addEventListener("click", () => handleDistributionRefreshGroup(groupKey));
     document.getElementById(`newdist${upper}CalcBtn`)?.addEventListener("click", () => handleDistributionCalculate(groupKey));
     document.getElementById(`newdist${upper}ClearBtn`)?.addEventListener("click", () => handleDistributionClearResults(groupKey));
@@ -1697,6 +1704,11 @@ function handleDistributionAddDeduction(groupKey) {
   renderDistributionGroup(groupKey);
 }
 
+function handleDistributionApplyDeductions(groupKey) {
+  state.distribution[groupKey].appliedDeductions = state.distribution[groupKey].deductions.map((row) => ({ ...row }));
+  renderDistributionGroup(groupKey);
+}
+
 function handleDistributionRefreshGroup(groupKey) {
   rebuildDistributionWorkingLogs();
   state.distribution[groupKey].results = [];
@@ -1734,6 +1746,7 @@ function handleDistributionClick(event) {
   if (role === "newdist-delete-deduction") {
     const groupKey = target.dataset.group;
     state.distribution[groupKey].deductions = state.distribution[groupKey].deductions.filter((row) => row.id !== target.dataset.id);
+    state.distribution[groupKey].appliedDeductions = state.distribution[groupKey].appliedDeductions.filter((row) => row.id !== target.dataset.id);
     renderDistributionGroup(groupKey);
     return;
   }
@@ -1804,7 +1817,6 @@ function handleDistributionInput(event) {
     const row = findDistributionDeductionRow(target.dataset.group, target.dataset.id);
     if (row) {
       row.value = target.value === "" ? "" : Math.max(0, Number(target.value) || 0);
-      renderDistributionGroup(target.dataset.group);
     }
   }
 }
@@ -1823,7 +1835,6 @@ function handleDistributionChange(event) {
     const row = findDistributionDeductionRow(target.dataset.group, target.dataset.id);
     if (row) {
       row.mode = target.value === "amount" ? "amount" : "percent";
-      renderDistributionGroup(target.dataset.group);
     }
   }
 }
@@ -1872,6 +1883,10 @@ function handleDistributionApplyLogEdit() {
 
 function findDistributionDeductionRow(groupKey, rowId) {
   return state.distribution[groupKey]?.deductions?.find((entry) => entry.id === rowId) || null;
+}
+
+function findAppliedDistributionDeductionRow(groupKey, rowId) {
+  return state.distribution[groupKey]?.appliedDeductions?.find((entry) => entry.id === rowId) || null;
 }
 
 function clampPercent(value) {
@@ -2186,7 +2201,7 @@ function calculateDistributionResults(groupKey) {
   });
 
   const assigned = getDistributionAssignedAmounts()[groupKey];
-  const deductionTotal = group.deductions.reduce((sum, row) => sum + getDistributionDeductionAmount(groupKey, row), 0);
+  const deductionTotal = group.appliedDeductions.reduce((sum, row) => sum + getDistributionDeductionAmount(groupKey, row), 0);
   const actualDiamond = Math.max(0, assigned - deductionTotal);
   const activeTotalPoints = Array.from(pointMap.values()).filter((row) => !row.isRetired).reduce((sum, row) => sum + row.points, 0);
   const perPoint = activeTotalPoints > 0 ? actualDiamond / activeTotalPoints : 0;
