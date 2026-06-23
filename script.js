@@ -44,6 +44,7 @@ const state = {
   overallEditMode: false,
   powerSortDirection: "desc",
   antiMagicPowerSortDirection: null,
+  simpleStatDisplayMode: "power",
   updatedAtSortDirection: null,
   hiddenAccessoryGroupIds: {},
   isBulkSaving: false,
@@ -147,9 +148,6 @@ function bindEvents() {
 
       state.activeTab = nextTab;
       resetOverallEditMode();
-      if (nextTab !== "power") {
-        state.antiMagicPowerSortDirection = null;
-      }
       updateTabUi();
 
       if (nextTab === "distribution") {
@@ -907,17 +905,36 @@ function renderPowerSummaryTable() {
   }).join("");
 }
 
-function renderMountSummaryTable() {
-  const powerSortText = state.powerSortDirection === "asc"
-    ? "▲"
-    : state.powerSortDirection === "desc"
-      ? "▼"
-      : "↕";
+function getSimpleStatDisplayConfig() {
+  const isAntiMagicPower = state.simpleStatDisplayMode === "anti_magic_power";
+  const sortDirection = isAntiMagicPower ? state.antiMagicPowerSortDirection : state.powerSortDirection;
+  const sortText = sortDirection === "asc" ? "▲" : sortDirection === "desc" ? "▼" : "↕";
+  return {
+    key: isAntiMagicPower ? "anti_magic_power" : "power",
+    label: isAntiMagicPower ? "항마력" : "전투력",
+    sortDirection,
+    sortText,
+    sortRole: isAntiMagicPower ? "anti-magic-power-sort-header" : "power-sort-header"
+  };
+}
 
+function getSimpleStatHeaderHtml(rowspan = "") {
+  const config = getSimpleStatDisplayConfig();
+  const activeClass = config.sortDirection ? " active" : "";
+  const rowspanAttr = rowspan ? ` rowspan="${rowspan}"` : "";
+  return `<th${rowspanAttr} class="sortable-header simple-stat-header${activeClass}" data-role="${config.sortRole}"><span class="sort-header-inner simple-stat-header-inner"><span>${config.label}</span><span class="sort-indicator">${config.sortText}</span><button class="stat-switch-btn" type="button" data-role="toggle-simple-stat-mode" title="전투력/항마력 전환" aria-label="전투력/항마력 전환">↻</button></span></th>`;
+}
+
+function getSimpleStatCellHtml(member) {
+  const config = getSimpleStatDisplayConfig();
+  return `<span class="value-box">${member?.[config.key] ?? 0}</span>`;
+}
+
+function renderMountSummaryTable() {
   const headers = [
     `<th>no</th>`,
     `<th>길드원</th>`,
-    `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    getSimpleStatHeaderHtml(),
     ...state.mountItems.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
     `<th class="save-col">저장</th>`,
     `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
@@ -940,7 +957,7 @@ function renderMountSummaryTable() {
     const isEditable = isMemberEditable(member.id);
     const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
 
-    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
+    const simpleStatCell = getSimpleStatCellHtml(member);
 
     const itemCells = state.mountItems.map((item) => {
       const currentOwned = isEditable
@@ -968,7 +985,7 @@ function renderMountSummaryTable() {
       <tr class="${rowClass}">
         <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
-        <td>${powerCell}</td>
+        <td>${simpleStatCell}</td>
         ${itemCells}
         <td>${saveCell}</td>
         <td>${lastUpdatedCell}</td>
@@ -984,18 +1001,12 @@ function getFilteredBossItems() {
 }
 
 function renderBossSummaryTable() {
-  const powerSortText = state.powerSortDirection === "asc"
-    ? "▲"
-    : state.powerSortDirection === "desc"
-      ? "▼"
-      : "↕";
-
   const filteredBossItems = getFilteredBossItems();
 
   const headers = [
     `<th>no</th>`,
     `<th>길드원</th>`,
-    `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    getSimpleStatHeaderHtml(),
     ...filteredBossItems.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
     `<th class="save-col">저장</th>`,
     `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
@@ -1018,7 +1029,7 @@ function renderBossSummaryTable() {
     const isEditable = isMemberEditable(member.id);
     const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
 
-    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
+    const simpleStatCell = getSimpleStatCellHtml(member);
 
     const itemCells = filteredBossItems.map((item) => {
       const currentOwned = isEditable
@@ -1046,7 +1057,7 @@ function renderBossSummaryTable() {
       <tr class="${rowClass}">
         <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
-        <td>${powerCell}</td>
+        <td>${simpleStatCell}</td>
         ${itemCells}
         <td>${saveCell}</td>
         <td>${lastUpdatedCell}</td>
@@ -1056,12 +1067,6 @@ function renderBossSummaryTable() {
 }
 
 function renderAccessorySummaryTable() {
-  const powerSortText = state.powerSortDirection === "asc"
-    ? "▲"
-    : state.powerSortDirection === "desc"
-      ? "▼"
-      : "↕";
-
   const totalAccessoryColumnCount = state.accessoryGroups.reduce((sum, group) => {
     return sum + (state.hiddenAccessoryGroupIds[group.id] ? 1 : ACCESSORY_PARTS.length);
   }, 0);
@@ -1069,7 +1074,7 @@ function renderAccessorySummaryTable() {
   const topHeaders = [
     `<th rowspan="2">no</th>`,
     `<th rowspan="2">길드원</th>`,
-    `<th rowspan="2" class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    getSimpleStatHeaderHtml("2"),
     ...state.accessoryGroups.map((group) => {
       const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
       const colSpan = isHidden ? 1 : ACCESSORY_PARTS.length;
@@ -1115,7 +1120,7 @@ function renderAccessorySummaryTable() {
     const isEditable = isMemberEditable(member.id);
     const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
 
-    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
+    const simpleStatCell = getSimpleStatCellHtml(member);
 
     const groupCells = state.accessoryGroups.map((group) => {
       const record = getAccessoryRecord(member.id, group.id);
@@ -2349,6 +2354,27 @@ function handleSummaryTableHeadClick(event) {
   const hideButton = event.target.closest('[data-role="toggle-accessory-group-hidden"]');
   if (hideButton) {
     toggleAccessoryGroupHidden(hideButton.dataset.groupId);
+    return;
+  }
+
+  const simpleStatToggleButton = event.target.closest('[data-role="toggle-simple-stat-mode"]');
+  if (simpleStatToggleButton) {
+    const nextMode = state.simpleStatDisplayMode === "anti_magic_power" ? "power" : "anti_magic_power";
+    state.simpleStatDisplayMode = nextMode;
+
+    if (nextMode === "anti_magic_power") {
+      if (!state.antiMagicPowerSortDirection) {
+        state.antiMagicPowerSortDirection = state.powerSortDirection || "desc";
+      }
+      state.powerSortDirection = null;
+    } else {
+      if (!state.powerSortDirection) {
+        state.powerSortDirection = state.antiMagicPowerSortDirection || "desc";
+      }
+      state.antiMagicPowerSortDirection = null;
+    }
+
+    renderSummaryTable();
     return;
   }
 
