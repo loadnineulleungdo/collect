@@ -1884,7 +1884,7 @@ button {
 }
 
 #guildManageModalBackdrop .manage-table {
-  min-width: 720px;
+  min-width: 820px;
   table-layout: fixed;
 }
 
@@ -1896,21 +1896,23 @@ button {
 }
 
 #guildManageModalBackdrop .manage-table th:nth-child(3),
-#guildManageModalBackdrop .manage-table td:nth-child(3) {
+#guildManageModalBackdrop .manage-table td:nth-child(3),
+#guildManageModalBackdrop .manage-table th:nth-child(4),
+#guildManageModalBackdrop .manage-table td:nth-child(4) {
   width: 95px;
   min-width: 95px;
   max-width: 95px;
 }
 
-#guildManageModalBackdrop .manage-table th:nth-child(4),
-#guildManageModalBackdrop .manage-table td:nth-child(4) {
+#guildManageModalBackdrop .manage-table th:nth-child(5),
+#guildManageModalBackdrop .manage-table td:nth-child(5) {
   width: 155px;
   min-width: 155px;
   max-width: 155px;
 }
 
-#guildManageModalBackdrop .manage-table th:nth-child(5),
-#guildManageModalBackdrop .manage-table td:nth-child(5) {
+#guildManageModalBackdrop .manage-table th:nth-child(6),
+#guildManageModalBackdrop .manage-table td:nth-child(6) {
   width: 110px;
   min-width: 110px;
   max-width: 110px;

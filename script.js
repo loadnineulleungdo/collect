@@ -37,6 +37,7 @@ const state = {
   draftMemberId: null,
   draftTab: null,
   draftPower: "",
+  draftAntiMagicPower: "",
   draftOwnedMap: {},
   draftAccessoryMap: {},
   draftAllRows: {},
@@ -311,7 +312,7 @@ async function loadActiveTabData() {
 }
 
 async function loadPowerData() {
-  const membersRes = await supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true });
+  const membersRes = await supabase.from("guild_members").select("id, name, power, anti_magic_power, updated_at, can_edit").order("name", { ascending: true });
 
   if (membersRes.error) {
     alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
@@ -324,7 +325,7 @@ async function loadPowerData() {
 
 async function loadMountData() {
   const [membersRes, itemsRes, memberMountsRes] = await Promise.all([
-    supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
+    supabase.from("guild_members").select("id, name, power, anti_magic_power, updated_at, can_edit").order("name", { ascending: true }),
     supabase.from("mounts").select("id, name, display_order").order("display_order", { ascending: true }),
     supabase.from("member_mounts").select("id, member_id, mount_id, owned, updated_at")
   ]);
@@ -351,7 +352,7 @@ async function loadMountData() {
 }
 async function loadBossData() {
   const [membersRes, itemsRes] = await Promise.all([
-    supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
+    supabase.from("guild_members").select("id, name, power, anti_magic_power, updated_at, can_edit").order("name", { ascending: true }),
     supabase
       .from("boss_collections")
       .select("id, name, display_order")
@@ -399,7 +400,7 @@ async function loadBossData() {
 
 async function loadAccessoryData() {
   const [membersRes, groupsRes, memberAccessoriesRes] = await Promise.all([
-    supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
+    supabase.from("guild_members").select("id, name, power, anti_magic_power, updated_at, can_edit").order("name", { ascending: true }),
     supabase.from("accessory_groups").select("id, name, display_order, max_count").order("display_order", { ascending: true }),
     supabase.from("member_accessories").select("id, member_id, accessory_group_id, ring_count, necklace_count, earring_count, belt_count, bracelet_count, updated_at")
   ]);
@@ -554,6 +555,7 @@ function syncDraftState() {
     state.draftMemberId = null;
     state.draftTab = null;
     state.draftPower = "";
+    state.draftAntiMagicPower = "";
     state.draftOwnedMap = {};
     state.draftAccessoryMap = {};
     return;
@@ -564,6 +566,7 @@ function syncDraftState() {
   state.draftMemberId = editableMember.id;
   state.draftTab = state.activeTab;
   state.draftPower = String(editableMember.power ?? 0);
+  state.draftAntiMagicPower = String(editableMember.anti_magic_power ?? 0);
   state.draftOwnedMap = {};
   state.draftAccessoryMap = {};
 
@@ -597,7 +600,7 @@ function ensureDraftRow(memberId) {
   if (!memberId) return null;
   if (!state.draftAllRows[memberId]) {
     const member = state.members.find((entry) => entry.id === memberId);
-    const row = { power: String(member?.power ?? 0), ownedMap: {}, accessoryMap: {} };
+    const row = { power: String(member?.power ?? 0), antiMagicPower: String(member?.anti_magic_power ?? 0), ownedMap: {}, accessoryMap: {} };
 
     if (state.activeTab === "accessory") {
       state.accessoryGroups.forEach((group) => {
@@ -633,6 +636,13 @@ function getMemberDraftPower(member) {
     return ensureDraftRow(member.id)?.power ?? String(member.power ?? 0);
   }
   return state.draftPower;
+}
+
+function getMemberDraftAntiMagicPower(member) {
+  if (state.overallEditMode) {
+    return ensureDraftRow(member.id)?.antiMagicPower ?? String(member.anti_magic_power ?? 0);
+  }
+  return state.draftAntiMagicPower;
 }
 
 function getMemberDraftOwned(memberId, itemId) {
@@ -831,6 +841,7 @@ function renderPowerSummaryTable() {
     `<th>no</th>`,
     `<th>길드원</th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>최고 투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    `<th>항마력</th>`,
     `<th class="save-col">저장</th>`,
     `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
   ];
@@ -842,7 +853,7 @@ function renderPowerSummaryTable() {
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
       <tr>
-        <td class="empty-row" colspan="5">표시할 길드원이 없습니다.</td>
+        <td class="empty-row" colspan="6">표시할 길드원이 없습니다.</td>
       </tr>
     `;
     return;
@@ -856,6 +867,10 @@ function renderPowerSummaryTable() {
       ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
       : `<span class="value-box">${member.power ?? 0}</span>`;
 
+    const antiMagicPowerCell = isEditable
+      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="anti-magic-power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftAntiMagicPower(member))}">`
+      : `<span class="value-box">${member.anti_magic_power ?? 0}</span>`;
+
     const saveCell = getRowActionButtonHtml(member.id, "save-row-power");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
@@ -865,6 +880,7 @@ function renderPowerSummaryTable() {
         <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
+        <td>${antiMagicPowerCell}</td>
         <td>${saveCell}</td>
         <td>${lastUpdatedCell}</td>
       </tr>
@@ -2187,7 +2203,7 @@ function setText(id, value) {
 
 function renderGuildManageTable() {
   if (state.members.length === 0) {
-    el.guildManageTableBody.innerHTML = `<tr><td colspan="5">등록된 길드원이 없습니다.</td></tr>`;
+    el.guildManageTableBody.innerHTML = `<tr><td colspan="6">등록된 길드원이 없습니다.</td></tr>`;
     return;
   }
 
@@ -2199,6 +2215,7 @@ function renderGuildManageTable() {
       <td>${index + 1}</td>
       <td>${escapeHtml(member.name)}</td>
       <td>${member.power ?? 0}</td>
+      <td>${member.anti_magic_power ?? 0}</td>
       <td>
         <button class="toggle-single-btn ${canEdit ? "owned" : "not-owned"}" type="button" data-action="toggle-member-editable" data-id="${member.id}">
           ${canEdit ? "수정 가능" : "수정 불가"}
@@ -2249,6 +2266,16 @@ function handleSummaryTableInput(event) {
       ensureDraftRow(memberId).power = target.value;
     } else {
       state.draftPower = target.value;
+    }
+    return;
+  }
+
+  if (target.matches('[data-role="anti-magic-power-input"]')) {
+    const memberId = target.dataset.memberId;
+    if (state.overallEditMode) {
+      ensureDraftRow(memberId).antiMagicPower = target.value;
+    } else {
+      state.draftAntiMagicPower = target.value;
     }
     return;
   }
@@ -2394,19 +2421,24 @@ function handleSummaryTableClick(event) {
   }
 }
 
-async function updateMemberPower(memberId, power, updatedAt) {
+async function updateMemberPowerStats(memberId, power, antiMagicPower, updatedAt) {
   const updateMemberRes = await supabase
     .from("guild_members")
-    .update({ power: Math.floor(power), updated_at: updatedAt })
+    .update({
+      power: Math.floor(power),
+      anti_magic_power: Math.floor(antiMagicPower),
+      updated_at: updatedAt
+    })
     .eq("id", memberId);
 
   if (updateMemberRes.error) {
-    throw new Error(`전투력 저장 중 오류가 발생했습니다.\n${updateMemberRes.error.message}`);
+    throw new Error(`전투력 저장 중 오류가 발생했습니다.
+${updateMemberRes.error.message}`);
   }
 }
 
-async function persistPowerRow(memberId, draftRow, power) {
-  await updateMemberPower(memberId, power, new Date().toISOString());
+async function persistPowerRow(memberId, draftRow, power, antiMagicPower) {
+  await updateMemberPowerStats(memberId, power, antiMagicPower, new Date().toISOString());
 }
 
 async function persistMountRow(memberId, draftRow) {
@@ -2493,12 +2525,16 @@ async function saveAllOverallEdits() {
       const memberId = memberIds[index];
       const draftRow = ensureDraftRow(memberId);
       const power = Number(draftRow?.power);
+      const antiMagicPower = Number(draftRow?.antiMagicPower ?? 0);
 
       if (state.activeTab === "power") {
         if (!Number.isFinite(power) || power < 0) {
           throw new Error("전투력을 올바르게 입력해주세요.");
         }
-        await persistPowerRow(memberId, draftRow, power);
+        if (!Number.isFinite(antiMagicPower) || antiMagicPower < 0) {
+          throw new Error("항마력을 올바르게 입력해주세요.");
+        }
+        await persistPowerRow(memberId, draftRow, power, antiMagicPower);
       } else if (state.activeTab === "accessory") {
         await persistAccessoryRow(memberId, draftRow);
       } else if (state.activeTab === "boss") {
@@ -2538,15 +2574,20 @@ async function savePowerEditableRow(memberId) {
 
   const draftRow = state.overallEditMode
     ? ensureDraftRow(memberId)
-    : { power: state.draftPower };
+    : { power: state.draftPower, antiMagicPower: state.draftAntiMagicPower };
   const power = Number(draftRow?.power);
+  const antiMagicPower = Number(draftRow?.antiMagicPower ?? 0);
   if (!Number.isFinite(power) || power < 0) {
     alert("전투력을 올바르게 입력해주세요.");
     return;
   }
+  if (!Number.isFinite(antiMagicPower) || antiMagicPower < 0) {
+    alert("항마력을 올바르게 입력해주세요.");
+    return;
+  }
 
   try {
-    await persistPowerRow(memberId, draftRow, power);
+    await persistPowerRow(memberId, draftRow, power, antiMagicPower);
   } catch (error) {
     alert(error.message);
     return;
@@ -2644,6 +2685,7 @@ function resetSearchState() {
   state.selectedMemberId = null;
   state.rowEditMemberId = null;
   state.draftTab = null;
+  state.draftAntiMagicPower = "";
   el.searchInput.value = "";
 }
 
@@ -2879,10 +2921,19 @@ async function addMember() {
     return;
   }
 
+  const antiMagicPowerValue = prompt("항마력을 입력해주세요.", "0");
+  if (antiMagicPowerValue === null) return;
+
+  const antiMagicPower = Number(antiMagicPowerValue);
+  if (!Number.isFinite(antiMagicPower) || antiMagicPower < 0) {
+    alert("항마력을 올바르게 입력해주세요.");
+    return;
+  }
+
   const insertRes = await supabase
     .from("guild_members")
-    .insert({ name, power: Math.floor(power) })
-    .select("id, name, power, updated_at, can_edit")
+    .insert({ name, power: Math.floor(power), anti_magic_power: Math.floor(antiMagicPower) })
+    .select("id, name, power, anti_magic_power, updated_at, can_edit")
     .single();
 
   if (insertRes.error) {
@@ -3006,9 +3057,18 @@ async function editMember(memberId) {
     return;
   }
 
+  const nextAntiMagicPowerValue = prompt("항마력을 수정해주세요.", String(member.anti_magic_power ?? 0));
+  if (nextAntiMagicPowerValue === null) return;
+
+  const nextAntiMagicPower = Number(nextAntiMagicPowerValue);
+  if (!Number.isFinite(nextAntiMagicPower) || nextAntiMagicPower < 0) {
+    alert("항마력을 올바르게 입력해주세요.");
+    return;
+  }
+
   const updateRes = await supabase
     .from("guild_members")
-    .update({ name: nextName, power: Math.floor(nextPower), updated_at: new Date().toISOString() })
+    .update({ name: nextName, power: Math.floor(nextPower), anti_magic_power: Math.floor(nextAntiMagicPower), updated_at: new Date().toISOString() })
     .eq("id", memberId);
 
   if (updateRes.error) {
