@@ -1071,6 +1071,18 @@ function renderAccessorySummaryTable() {
     return sum + (state.hiddenAccessoryGroupIds[group.id] ? 1 : ACCESSORY_PARTS.length);
   }, 0);
 
+  const accessoryRecordMap = new Map();
+  const accessoryLatestUpdatedAtMap = new Map();
+  state.memberAccessories.forEach((record) => {
+    accessoryRecordMap.set(getAccessoryRecordKey(record.member_id, record.accessory_group_id), record);
+
+    if (!record?.updated_at) return;
+    const currentLatest = accessoryLatestUpdatedAtMap.get(record.member_id);
+    if (!currentLatest || new Date(record.updated_at) > new Date(currentLatest)) {
+      accessoryLatestUpdatedAtMap.set(record.member_id, record.updated_at);
+    }
+  });
+
   const topHeaders = [
     `<th rowspan="2">no</th>`,
     `<th rowspan="2">길드원</th>`,
@@ -1123,7 +1135,7 @@ function renderAccessorySummaryTable() {
     const simpleStatCell = getSimpleStatCellHtml(member);
 
     const groupCells = state.accessoryGroups.map((group) => {
-      const record = getAccessoryRecord(member.id, group.id);
+      const record = accessoryRecordMap.get(getAccessoryRecordKey(member.id, group.id));
       const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
 
       if (isHidden) {
@@ -1155,13 +1167,13 @@ function renderAccessorySummaryTable() {
 
     const saveCell = getRowActionButtonHtml(member.id, "save-row-accessory");
 
-    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getAccessoryLatestUpdatedAt(member.id))}</span>`;
+    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(accessoryLatestUpdatedAtMap.get(member.id))}</span>`;
 
     return `
       <tr class="${rowClass}">
         <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
-        <td>${powerCell}</td>
+        <td>${simpleStatCell}</td>
         ${groupCells}
         <td>${saveCell}</td>
         <td>${lastUpdatedCell}</td>
@@ -3590,6 +3602,10 @@ function getAccessoryHeatCellStyle(value, maxCount) {
   const lightness = 97 - (ratio * 14);
 
   return `background-color: hsl(215 ${saturation}% ${lightness}%);`;
+}
+
+function getAccessoryRecordKey(memberId, groupId) {
+  return `${memberId}::${groupId}`;
 }
 
 function getAccessoryRecord(memberId, groupId) {
