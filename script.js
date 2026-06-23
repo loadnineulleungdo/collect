@@ -43,6 +43,7 @@ const state = {
   draftAllRows: {},
   overallEditMode: false,
   powerSortDirection: "desc",
+  antiMagicPowerSortDirection: null,
   updatedAtSortDirection: null,
   hiddenAccessoryGroupIds: {},
   isBulkSaving: false,
@@ -146,6 +147,9 @@ function bindEvents() {
 
       state.activeTab = nextTab;
       resetOverallEditMode();
+      if (nextTab !== "power") {
+        state.antiMagicPowerSortDirection = null;
+      }
       updateTabUi();
 
       if (nextTab === "distribution") {
@@ -515,8 +519,9 @@ function getFilteredMembers() {
 function sortFilteredMembers(members) {
   const updatedDirection = state.updatedAtSortDirection;
   const powerDirection = state.powerSortDirection;
+  const antiMagicPowerDirection = state.antiMagicPowerSortDirection;
 
-  if (!updatedDirection && !powerDirection) return members;
+  if (!updatedDirection && !powerDirection && !antiMagicPowerDirection) return members;
 
   return [...members].sort((left, right) => {
     if (updatedDirection) {
@@ -534,6 +539,15 @@ function sortFilteredMembers(members) {
 
       if (leftPower !== rightPower) {
         return powerDirection === "asc" ? leftPower - rightPower : rightPower - leftPower;
+      }
+    }
+
+    if (antiMagicPowerDirection) {
+      const leftAntiMagicPower = Number(left.anti_magic_power ?? 0);
+      const rightAntiMagicPower = Number(right.anti_magic_power ?? 0);
+
+      if (leftAntiMagicPower !== rightAntiMagicPower) {
+        return antiMagicPowerDirection === "asc" ? leftAntiMagicPower - rightAntiMagicPower : rightAntiMagicPower - leftAntiMagicPower;
       }
     }
 
@@ -836,12 +850,17 @@ function renderPowerSummaryTable() {
     : state.powerSortDirection === "desc"
       ? "▼"
       : "↕";
+  const antiMagicPowerSortText = state.antiMagicPowerSortDirection === "asc"
+    ? "▲"
+    : state.antiMagicPowerSortDirection === "desc"
+      ? "▼"
+      : "↕";
 
   const headers = [
     `<th>no</th>`,
     `<th>길드원</th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>최고 투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
-    `<th>항마력</th>`,
+    `<th class="sortable-header ${state.antiMagicPowerSortDirection ? "active" : ""}" data-role="anti-magic-power-sort-header"><span class="sort-header-inner"><span>항마력</span><span class="sort-indicator">${antiMagicPowerSortText}</span></span></th>`,
     `<th class="save-col">저장</th>`,
     `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
   ];
@@ -2347,6 +2366,24 @@ function handleSummaryTableHeadClick(event) {
     return;
   }
 
+  const antiMagicPowerHeader = event.target.closest('[data-role="anti-magic-power-sort-header"]');
+  if (antiMagicPowerHeader) {
+    if (state.antiMagicPowerSortDirection === "asc") {
+      state.antiMagicPowerSortDirection = "desc";
+    } else if (state.antiMagicPowerSortDirection === "desc") {
+      state.antiMagicPowerSortDirection = null;
+    } else {
+      state.antiMagicPowerSortDirection = "asc";
+    }
+
+    if (state.antiMagicPowerSortDirection) {
+      state.powerSortDirection = null;
+    }
+
+    renderSummaryTable();
+    return;
+  }
+
   const header = event.target.closest('[data-role="power-sort-header"]');
   if (!header) return;
 
@@ -2356,6 +2393,10 @@ function handleSummaryTableHeadClick(event) {
     state.powerSortDirection = null;
   } else {
     state.powerSortDirection = "asc";
+  }
+
+  if (state.powerSortDirection) {
+    state.antiMagicPowerSortDirection = null;
   }
 
   renderSummaryTable();
