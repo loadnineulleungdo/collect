@@ -2239,7 +2239,7 @@ function setText(id, value) {
 
 function renderGuildManageTable() {
   if (state.members.length === 0) {
-    el.guildManageTableBody.innerHTML = `<tr><td colspan="4">등록된 길드원이 없습니다.</td></tr>`;
+    el.guildManageTableBody.innerHTML = `<tr><td colspan="6">등록된 길드원이 없습니다.</td></tr>`;
     return;
   }
 
@@ -2250,6 +2250,8 @@ function renderGuildManageTable() {
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(member.name)}</td>
+      <td>${Number(member.power ?? 0)}</td>
+      <td>${Number(member.anti_magic_power ?? 0)}</td>
       <td>
         <button class="toggle-single-btn ${canEdit ? "owned" : "not-owned"}" type="button" data-action="toggle-member-editable" data-id="${member.id}">
           ${canEdit ? "수정 가능" : "수정 불가"}
@@ -3157,9 +3159,32 @@ async function editMember(memberId) {
     return;
   }
 
+  const nextPowerValue = prompt("전투력을 수정해주세요.", String(member.power ?? 0));
+  if (nextPowerValue === null) return;
+
+  const nextPower = Number(nextPowerValue);
+  if (!Number.isFinite(nextPower) || nextPower < 0) {
+    alert("전투력을 올바르게 입력해주세요.");
+    return;
+  }
+
+  const nextAntiMagicPowerValue = prompt("항마력을 수정해주세요.", String(member.anti_magic_power ?? 0));
+  if (nextAntiMagicPowerValue === null) return;
+
+  const nextAntiMagicPower = Number(nextAntiMagicPowerValue);
+  if (!Number.isFinite(nextAntiMagicPower) || nextAntiMagicPower < 0) {
+    alert("항마력을 올바르게 입력해주세요.");
+    return;
+  }
+
   const updateRes = await supabase
     .from("guild_members")
-    .update({ name: nextName, updated_at: new Date().toISOString() })
+    .update({
+      name: nextName,
+      power: Math.floor(nextPower),
+      anti_magic_power: Math.floor(nextAntiMagicPower),
+      updated_at: new Date().toISOString()
+    })
     .eq("id", memberId);
 
   if (updateRes.error) {
