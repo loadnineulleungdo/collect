@@ -2373,6 +2373,7 @@ function handleSummaryTableHeadClick(event) {
   if (simpleStatToggleButton) {
     const nextMode = state.simpleStatDisplayMode === "anti_magic_power" ? "power" : "anti_magic_power";
     state.simpleStatDisplayMode = nextMode;
+    state.updatedAtSortDirection = null;
 
     if (nextMode === "anti_magic_power") {
       if (!state.antiMagicPowerSortDirection) {
@@ -2392,6 +2393,9 @@ function handleSummaryTableHeadClick(event) {
 
   const updatedHeader = event.target.closest('[data-role="updated-sort-header"]');
   if (updatedHeader) {
+    state.powerSortDirection = null;
+    state.antiMagicPowerSortDirection = null;
+
     if (state.updatedAtSortDirection === "asc") {
       state.updatedAtSortDirection = "desc";
     } else if (state.updatedAtSortDirection === "desc") {
@@ -2416,6 +2420,7 @@ function handleSummaryTableHeadClick(event) {
 
     if (state.antiMagicPowerSortDirection) {
       state.powerSortDirection = null;
+      state.updatedAtSortDirection = null;
     }
 
     renderSummaryTable();
@@ -2435,6 +2440,7 @@ function handleSummaryTableHeadClick(event) {
 
   if (state.powerSortDirection) {
     state.antiMagicPowerSortDirection = null;
+    state.updatedAtSortDirection = null;
   }
 
   renderSummaryTable();
@@ -2584,6 +2590,44 @@ async function persistBossRow(memberId, draftRow) {
   }
 }
 
+
+function hasOverallDraftRowChanged(memberId, draftRow) {
+  const member = state.members.find((entry) => String(entry.id) === String(memberId));
+
+  if (state.activeTab === "power") {
+    if (!member) return false;
+    const draftPower = Math.floor(Number(draftRow?.power));
+    const draftAntiMagicPower = Math.floor(Number(draftRow?.antiMagicPower ?? 0));
+    return draftPower !== Math.floor(Number(member.power ?? 0))
+      || draftAntiMagicPower !== Math.floor(Number(member.anti_magic_power ?? 0));
+  }
+
+  if (state.activeTab === "accessory") {
+    return state.accessoryGroups.some((group) => {
+      const record = getAccessoryRecord(memberId, group.id);
+      return ACCESSORY_PARTS.some((part) => {
+        const draftValue = Math.floor(Number(draftRow?.accessoryMap?.[group.id]?.[part.key] ?? 0));
+        const currentValue = Math.floor(Number(record?.[part.key] ?? 0));
+        return draftValue !== currentValue;
+      });
+    });
+  }
+
+  if (state.activeTab === "boss") {
+    return state.bossItems.some((item) => {
+      const draftOwned = Boolean(draftRow?.ownedMap?.[item.id]);
+      const currentOwned = getBossOwnedValue(memberId, item.id);
+      return draftOwned !== currentOwned;
+    });
+  }
+
+  return state.mountItems.some((item) => {
+    const draftOwned = Boolean(draftRow?.ownedMap?.[item.id]);
+    const currentOwned = getOwnedValue(memberId, item.id);
+    return draftOwned !== currentOwned;
+  });
+}
+
 async function saveAllOverallEdits() {
   if (!state.overallEditMode || state.isBulkSaving) return;
 
@@ -2593,13 +2637,19 @@ async function saveAllOverallEdits() {
     return;
   }
 
+  const changedMemberIds = memberIds.filter((memberId) => hasOverallDraftRowChanged(memberId, ensureDraftRow(memberId)));
+  if (changedMemberIds.length === 0) {
+    alert("저장할 변경사항이 없습니다.");
+    return;
+  }
+
   state.isBulkSaving = true;
   setBulkSaveProgress(0);
   updateTabUi();
 
   try {
-    for (let index = 0; index < memberIds.length; index += 1) {
-      const memberId = memberIds[index];
+    for (let index = 0; index < changedMemberIds.length; index += 1) {
+      const memberId = changedMemberIds[index];
       const draftRow = ensureDraftRow(memberId);
       const power = Number(draftRow?.power);
       const antiMagicPower = Number(draftRow?.antiMagicPower ?? 0);
@@ -2620,7 +2670,7 @@ async function saveAllOverallEdits() {
         await persistMountRow(memberId, draftRow);
       }
 
-      setBulkSaveProgress(((index + 1) / memberIds.length) * 100);
+      setBulkSaveProgress(((index + 1) / changedMemberIds.length) * 100);
     }
 
     resetOverallEditMode();
