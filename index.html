@@ -110,7 +110,7 @@
       </div>
     </div>
     <div class="newdist-manage-actions">
-      <button class="btn btn-outline" type="button" id="newdistOpenBossManageBtn">분배 보스 관리</button>
+      <button class="btn btn-outline" type="button" id="newdistOpenBossManageBtn">분배 보스 점수</button>
       <button class="btn btn-outline" type="button" id="newdistOpenNameRuleBtn">참여자 이름 정리</button>
     </div>
   </div>
@@ -394,17 +394,25 @@
   </div>
 
   <div class="newdist-modal-backdrop modal-backdrop hidden" id="newdistBossManageModal">
-    <div class="newdist-modal modal">
+    <div class="newdist-modal modal" role="dialog" aria-modal="true" aria-labelledby="newdistBossTitle">
       <div class="newdist-modal-head modal-header">
-        <h3 class="newdist-modal-title">분배 보스 관리</h3>
-        <button class="newdist-close-btn" type="button" data-newdist-close="newdistBossManageModal">×</button>
+        <h3 class="newdist-modal-title" id="newdistBossTitle">분배 보스 점수</h3>
+        <button class="newdist-close-btn" type="button" data-newdist-close="newdistBossManageModal" aria-label="보스 점수 닫기">×</button>
       </div>
       <div class="newdist-modal-body">
-        <div class="newdist-actions">
-          <button class="btn btn-outline" type="button" id="newdistBossAddBtn">보스 추가</button>
-          <button class="btn btn-primary" type="button" id="newdistBossSaveBtn">저장</button>
+        <div class="boss-points-toolbar">
+          <div>
+            <span class="boss-points-source">디스코드 봇 기준</span>
+            <p id="newdistBossSummary" aria-live="polite">전체 0 · 본토 0 · 월드 0</p>
+          </div>
+          <button class="btn btn-outline" type="button" id="newdistBossRefreshBtn">새로고침</button>
         </div>
-        <div class="newdist-table-wrap">
+        <div class="boss-points-sort" role="group" aria-label="보스 정렬 기준">
+          <button type="button" data-boss-sort="name" aria-pressed="true">이름순 <span>가나다</span></button>
+          <button type="button" data-boss-sort="score" aria-pressed="false">점수순 <span>높은 순</span></button>
+        </div>
+        <p class="boss-points-status" id="newdistBossStatus" role="status">점수 변경은 디스코드의 !보스점수 명령어를 사용해주세요.</p>
+        <div class="newdist-table-wrap boss-points-table-wrap">
           <table class="newdist-table">
             <thead>
               <tr>
@@ -412,7 +420,6 @@
                 <th>보스명</th>
                 <th class="right">점수</th>
                 <th class="center">구분</th>
-                <th class="center">관리</th>
               </tr>
             </thead>
             <tbody id="newdistBossRuleBody"></tbody>

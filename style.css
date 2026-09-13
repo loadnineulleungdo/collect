@@ -2338,6 +2338,45 @@ button {
   margin-bottom: 0;
 }
 
+/* Read-only boss points: compact enough for mobile without horizontal scrolling. */
+#newdistBossManageModal .newdist-modal { width: min(640px, 100%); }
+#newdistBossManageModal .boss-points-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+#newdistBossManageModal .boss-points-source { color: #64748b; font-size: 12px; }
+#newdistBossSummary { margin: 5px 0 0; color: #334155; font-size: 14px; font-weight: 700; }
+#newdistBossManageModal .boss-points-sort {
+  display: flex; padding: 4px; gap: 4px; border: 1px solid #e2e8f0;
+  border-radius: 12px; background: #f1f5f9;
+}
+#newdistBossManageModal .boss-points-sort button {
+  flex: 1; min-height: 42px; border: 0; border-radius: 8px;
+  background: transparent; color: #475569; cursor: pointer; font: inherit; font-size: 14px; font-weight: 700;
+}
+#newdistBossManageModal .boss-points-sort button span { margin-left: 5px; font-size: 11px; font-weight: 400; }
+#newdistBossManageModal .boss-points-sort button[aria-pressed="true"] {
+  color: #fff; background: #334155; box-shadow: 0 2px 4px #0f172a20;
+}
+#newdistBossManageModal button:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+#newdistBossManageModal button:disabled { opacity: .55; cursor: wait; }
+#newdistBossManageModal .boss-points-status { margin: 0; color: #64748b; font-size: 12px; line-height: 1.6; }
+#newdistBossManageModal .boss-points-table-wrap { max-height: 48vh; overflow: auto; }
+#newdistBossManageModal .newdist-table { min-width: 0; width: 100%; }
+#newdistBossManageModal .newdist-table th { position: sticky; top: 0; z-index: 1; }
+#newdistBossManageModal .newdist-table th:first-child { width: 40px; }
+#newdistBossManageModal .newdist-table td:nth-child(2) { white-space: normal; overflow-wrap: anywhere; font-weight: 600; }
+#newdistBossManageModal .newdist-table .right { text-align: right; }
+#newdistBossManageModal .newdist-table .center { text-align: center; }
+#newdistBossManageModal .newdist-table tbody tr:hover { background: #f8fafc; }
+#newdistBossManageModal .boss-points-value { font-size: 16px; font-weight: 800; color: #334155; font-variant-numeric: tabular-nums; }
+#newdistBossManageModal .boss-points-value small { margin-left: 3px; font-size: 11px; color: #64748b; font-weight: 400; }
+@media (max-width: 480px) {
+  #newdistBossManageModal .newdist-modal-body { padding: 12px; gap: 12px; }
+  #newdistBossManageModal .newdist-table th,
+  #newdistBossManageModal .newdist-table td { padding: 10px 6px; }
+  #newdistBossManageModal .newdist-badge { min-width: 40px; padding: 4px 6px; }
+}
+
 .newdist-editor-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

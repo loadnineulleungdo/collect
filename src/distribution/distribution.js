@@ -9,9 +9,14 @@ export function bindNewDistributionUi(state, deps) {
   document.getElementById("newdistResetBtn")?.addEventListener("click", deps.handleDistributionReset);
   document.getElementById("newdistLoadBtn")?.addEventListener("click", deps.handleDistributionLoadExcel);
   document.getElementById("newdistOpenBossManageBtn")?.addEventListener("click", () => deps.openDistributionModal("newdistBossManageModal"));
+  document.querySelectorAll("[data-boss-sort]").forEach(button => {
+    button.addEventListener("click", () => {
+      state.distribution.bossSort = button.dataset.bossSort;
+      renderDistributionBossRules({ ...deps, state });
+    });
+  });
+  document.getElementById("newdistBossRefreshBtn")?.addEventListener("click", () => deps.openDistributionModal("newdistBossManageModal"));
   document.getElementById("newdistOpenNameRuleBtn")?.addEventListener("click", () => deps.openDistributionModal("newdistNameRuleModal"));
-  document.getElementById("newdistBossAddBtn")?.addEventListener("click", deps.handleDistributionAddBossRule);
-  document.getElementById("newdistBossSaveBtn")?.addEventListener("click", deps.handleDistributionSaveBossRules);
   document.getElementById("newdistNameRuleAddBtn")?.addEventListener("click", deps.handleDistributionAddNameRule);
   document.getElementById("newdistNameRuleSaveBtn")?.addEventListener("click", deps.handleDistributionSaveNameRules);
   document.getElementById("newdistLogEditApplyBtn")?.addEventListener("click", deps.handleDistributionApplyLogEdit);
@@ -204,27 +209,40 @@ export function renderDistributionResults(deps, groupKey) {
   `).join("");
 }
 
-export function renderDistributionBossRules({ state, escapeAttr }) {
+export function getSortedDistributionBossRules(rows, sort = "name") {
+  return [...rows].sort((a, b) =>
+    (sort === "score" ? b.score - a.score : 0) || a.name.localeCompare(b.name, "ko")
+  );
+}
+
+export function renderDistributionBossRules({ state, escapeHtml }) {
   const body = document.getElementById("newdistBossRuleBody");
   if (!body) return;
-  const rows = state.distribution.bossRules;
-  if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="5" class="distribution-empty-row">등록된 분배 보스가 없습니다.</td></tr>`;
+  const distribution = state.distribution;
+  const rows = getSortedDistributionBossRules(distribution.bossRules, distribution.bossSort);
+  const summary = document.getElementById("newdistBossSummary");
+  if (summary) summary.textContent = `전체 ${rows.length} · 본토 ${rows.filter(row => row.group === "mainland").length} · 월드 ${rows.filter(row => row.group === "world").length}`;
+  const status = document.getElementById("newdistBossStatus");
+  if (status) status.textContent = distribution.bossRulesLoading ? "최신 점수를 불러오는 중입니다…" : distribution.bossRulesError || "점수 변경은 디스코드의 !보스점수 명령어를 사용해주세요.";
+  const refresh = document.getElementById("newdistBossRefreshBtn");
+  if (refresh) refresh.disabled = Boolean(distribution.bossRulesLoading);
+  document.querySelectorAll("[data-boss-sort]").forEach(button => {
+    button.setAttribute("aria-pressed", String(button.dataset.bossSort === (distribution.bossSort || "name")));
+  });
+  if (distribution.bossRulesLoading || distribution.bossRulesError) {
+    body.innerHTML = `<tr><td colspan="4" class="distribution-empty-row">${escapeHtml(distribution.bossRulesLoading ? "보스 목록을 불러오고 있습니다." : "목록을 불러오지 못했습니다. 새로고침을 눌러 다시 시도해주세요.")}</td></tr>`;
     return;
   }
-
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="4" class="distribution-empty-row">불러온 보스가 없습니다.</td></tr>';
+    return;
+  }
   body.innerHTML = rows.map((row, index) => `
     <tr>
       <td class="center">${index + 1}</td>
-      <td><input class="newdist-input-sm" type="text" data-role="newdist-boss-name" data-id="${row.id}" value="${escapeAttr(row.name)}"></td>
-      <td class="right"><input class="newdist-input-sm" type="number" min="0" step="1" data-role="newdist-boss-score" data-id="${row.id}" value="${escapeAttr(row.score)}"></td>
-      <td class="center">
-        <select class="newdist-select-sm" data-role="newdist-boss-group" data-id="${row.id}">
-          <option value="mainland" ${row.group === "mainland" ? "selected" : ""}>본토</option>
-          <option value="world" ${row.group === "world" ? "selected" : ""}>월드</option>
-        </select>
-      </td>
-      <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-delete-boss" data-id="${row.id}">삭제</button></td>
+      <td>${escapeHtml(row.name)}</td>
+      <td class="right"><span class="boss-points-value">${row.score}<small>점</small></span></td>
+      <td class="center"><span class="newdist-badge newdist-badge-${row.group === "world" ? "world" : "mainland"}">${row.group === "world" ? "월드" : "본토"}</span></td>
     </tr>
   `).join("");
 }
@@ -280,7 +298,7 @@ export function sanitizeDistributionBossRules(state) {
       ...row,
       name: String(row.name || "").trim(),
       score: Math.max(0, Math.floor(Number(row.score) || 0)),
-      group: row.group === "world" ? "world" : "mainland"
+      group: ["world", "mainland"].includes(row.group) ? row.group : null
     }))
     .filter((row) => row.name);
 }
@@ -291,112 +309,42 @@ export function isUuidLike(value) {
 
 export async function loadDistributionBossRulesFromDb({
   state,
-  supabase,
-  distributionBossRulesTable
+  bossSupabase
 }, forceReload = false) {
   if (state.distribution.bossRulesLoaded && !forceReload) return;
-
-  const res = await supabase
-    .from(distributionBossRulesTable)
-    .select("id, name, score, group_type, display_order, updated_at")
-    .order("display_order", { ascending: true })
-    .order("id", { ascending: true });
-
-  if (res.error) {
-    throw new Error(`분배 보스 목록 조회 중 오류가 발생했습니다.
-${res.error.message}`);
-  }
-
-  const rows = Array.isArray(res.data) ? res.data : [];
-  state.distribution.bossRules = rows.map((row) => ({
-    id: row.id,
-    name: String(row.name || "").trim(),
-    score: Math.max(0, Math.floor(Number(row.score) || 0)),
-    group: row.group_type === "world" ? "world" : "mainland"
-  }));
-  state.distribution.bossRulesLoaded = true;
-  state.distribution.bossRuleDbIds = rows.map((row) => row.id).filter(Boolean);
-}
-
-export async function ensureDistributionBossRulesLoaded(deps) {
-  if (deps.state.distribution.bossRulesLoaded) return;
-  await loadDistributionBossRulesFromDb(deps);
-}
-
-export async function saveDistributionBossRulesToDb({
-  state,
-  supabase,
-  distributionBossRulesTable
-}) {
-  const rows = state.distribution.bossRules;
-  const existingIds = new Set((state.distribution.bossRuleDbIds || []).filter(Boolean));
-  const keptIds = new Set(rows.map((row) => row.id).filter((id) => isUuidLike(id)));
-  const deleteIds = Array.from(existingIds).filter((id) => !keptIds.has(id));
-
-  if (deleteIds.length) {
-    const deleteRes = await supabase
-      .from(distributionBossRulesTable)
-      .delete()
-      .in("id", deleteIds);
-
-    if (deleteRes.error) {
-      throw new Error(`분배 보스 삭제 중 오류가 발생했습니다.
-${deleteRes.error.message}`);
+  state.distribution.bossRulesLoaded = false;
+  try {
+    if (!bossSupabase) throw new Error("보스봇 DB 연결 설정이 없습니다.");
+    const bossRes = await bossSupabase.from("bosses")
+      .select("id, name, points, group_type").order("name", { ascending: true });
+    if (bossRes.error) throw new Error(`보스봇 점수 조회 실패: ${bossRes.error.message}`);
+    if (!bossRes.data?.length) throw new Error("보스봇에서 조회된 보스가 없습니다.");
+    const rows = bossRes.data.map(boss => {
+      if (!Number.isSafeInteger(boss.points) || boss.points < 0) {
+        throw new Error(`보스 점수를 확인해주세요: ${boss.name}`);
+      }
+      if (!["world", "mainland"].includes(boss.group_type)) {
+        throw new Error(`본토·월드 구분을 확인해주세요: ${boss.name}`);
+      }
+      return {
+        id: boss.id,
+        name: boss.name,
+        score: boss.points,
+        group: boss.group_type
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    if (JSON.stringify(state.distribution.bossRules) !== JSON.stringify(rows)) {
+      state.distribution.mainland.results = [];
+      state.distribution.world.results = [];
     }
+    state.distribution.bossRules = rows;
+    state.distribution.bossRulesLoaded = true;
+  } catch (error) {
+    state.distribution.bossRules = [];
+    state.distribution.mainland.results = [];
+    state.distribution.world.results = [];
+    throw error;
   }
-
-  const now = new Date().toISOString();
-
-  const normalizedRows = rows.map((row, index) => ({
-    id: row.id,
-    name: row.name,
-    score: Math.max(0, Math.floor(Number(row.score) || 0)),
-    group_type: row.group === "world" ? "world" : "mainland",
-    display_order: index + 1,
-    updated_at: now
-  }));
-
-  const updateRows = normalizedRows.filter((row) => isUuidLike(row.id));
-  const insertRows = normalizedRows
-    .filter((row) => !isUuidLike(row.id))
-    .map(({ name, score, group_type, display_order, updated_at }) => ({
-      name,
-      score,
-      group_type,
-      display_order,
-      updated_at
-    }));
-
-  for (const row of updateRows) {
-    const updateRes = await supabase
-      .from(distributionBossRulesTable)
-      .update({
-        name: row.name,
-        score: row.score,
-        group_type: row.group_type,
-        display_order: row.display_order,
-        updated_at: row.updated_at
-      })
-      .eq("id", row.id);
-
-    if (updateRes.error) {
-      throw new Error(`분배 보스 수정 중 오류가 발생했습니다.
-${updateRes.error.message}`);
-    }
-  }
-
-  if (insertRows.length) {
-    const insertRes = await supabase
-      .from(distributionBossRulesTable)
-      .insert(insertRows);
-
-    if (insertRes.error) {
-      throw new Error(`분배 보스 저장 중 오류가 발생했습니다.
-${insertRes.error.message}`);
-    }
-  }
-
-  await loadDistributionBossRulesFromDb({ state, supabase, distributionBossRulesTable }, true);
 }
 
 export function handleDistributionExport({
@@ -734,7 +682,7 @@ export function rebuildDistributionWorkingLogs(state) {
 
   state.distribution.rawLogs.forEach((rawLog) => {
     const bossRule = bossRuleMap.get(normalizeDistributionName(rawLog.boss));
-    if (!bossRule) {
+    if (!bossRule || !bossRule.group) {
       state.distribution.unknownBosses.push(rawLog);
       return;
     }
@@ -838,7 +786,9 @@ export function initializeDistributionState(state, deps) {
     nameRules: [],
     editingLogKey: null,
     bossRulesLoaded: false,
-    bossRuleDbIds: [],
+    bossRulesLoading: false,
+    bossRulesError: "",
+    bossSort: "name",
     mainland: deps.createDistributionGroupState("mainland"),
     world: deps.createDistributionGroupState("world")
   };

@@ -1,4 +1,4 @@
-﻿import {
+import {
   escapeAttr,
   escapeHtml,
   formatDateTime,
@@ -12,7 +12,6 @@ import {
   ADMIN_PASSWORD_KEY,
   APP_SETTINGS_TABLE,
   bossSupabase,
-  DISTRIBUTION_BOSS_RULES_TABLE,
   supabase
 } from "./core/supabaseClient.js";
 import {
@@ -37,7 +36,6 @@ import {
   handleDistributionExport as handleDistributionExportModule,
   handleDistributionFinalSave as handleDistributionFinalSaveModule,
   initializeDistributionState as initializeDistributionStateModule,
-  ensureDistributionBossRulesLoaded as ensureDistributionBossRulesLoadedModule,
   isUuidLike as isUuidLikeModule,
   loadDistributionBossRulesFromDb as loadDistributionBossRulesFromDbModule,
   normalizeDistributionName as normalizeDistributionNameModule,
@@ -57,7 +55,6 @@ import {
   renderDistributionTab as renderDistributionTabModule,
   sanitizeDistributionBossRules as sanitizeDistributionBossRulesModule,
   sanitizeDistributionNameRules as sanitizeDistributionNameRulesModule,
-  saveDistributionBossRulesToDb as saveDistributionBossRulesToDbModule,
   setDistributionFinalSaveButtonsDisabled as setDistributionFinalSaveButtonsDisabledModule,
   splitParticipantText as splitParticipantTextModule,
   writeDistributionHistoryWorkbook as writeDistributionHistoryWorkbookModule
@@ -1512,7 +1509,6 @@ function closeSearchSelectModal() {
   closeModal(el.searchSelectModalBackdrop);
 }
 
-
 function initializeDistributionState() {
   initializeDistributionStateModule(state, { createDistributionGroupState });
 }
@@ -1618,8 +1614,8 @@ function getDistributionDeductionAmount(groupKey, row) {
 
 function bindNewDistributionUi() {
   bindDistributionUiModule(state, {
+    escapeHtml,
     closeDistributionModal,
-    handleDistributionAddBossRule,
     handleDistributionAddDeduction,
     handleDistributionAddNameRule,
     handleDistributionApplyDeductions,
@@ -1634,7 +1630,6 @@ function bindNewDistributionUi() {
     handleDistributionLoadExcel,
     handleDistributionRefreshGroup,
     handleDistributionReset,
-    handleDistributionSaveBossRules,
     handleDistributionSaveNameRules,
     openDistributionModal,
     updateDistributionSubtabs
@@ -1657,8 +1652,6 @@ function handleDistributionReset() {
 }
 
 async function handleDistributionLoadExcel() {
-  await ensureDistributionBossRulesLoaded();
-
   const fileInput = document.getElementById("newdistFileInput");
   const file = fileInput?.files?.[0];
   if (!file) {
@@ -1667,6 +1660,7 @@ async function handleDistributionLoadExcel() {
   }
 
   try {
+    await loadDistributionBossRulesFromDb(true);
     const workbook = await readWorkbookFile(file);
     const rows = readDistributionSheetRows(workbook);
     const parsedLogs = buildDistributionLogsFromRows(rows);
@@ -1681,25 +1675,6 @@ async function handleDistributionLoadExcel() {
     alert(`엑셀 로드가 완료되었습니다.\n작업 로그 ${loadedCount}건${unknownCount ? `\n미분류 보스 ${unknownCount}건` : ""}`);
   } catch (error) {
     alert(error.message || "엑셀 로드 중 오류가 발생했습니다.");
-  }
-}
-
-function handleDistributionAddBossRule() {
-  state.distribution.bossRules.push(createBossRule("", 1, "mainland"));
-  renderDistributionBossRules();
-}
-
-async function handleDistributionSaveBossRules() {
-  sanitizeDistributionBossRules();
-
-  try {
-    await saveDistributionBossRulesToDb();
-    rebuildDistributionWorkingLogs();
-    renderDistributionTab();
-    closeDistributionModal("newdistBossManageModal");
-    alert("분배 보스 관리가 저장되었습니다.");
-  } catch (error) {
-    alert(error.message || "분배 보스 관리 저장 중 오류가 발생했습니다.");
   }
 }
 
@@ -1732,9 +1707,19 @@ function handleDistributionRefreshGroup(groupKey) {
   renderDistributionTab();
 }
 
-function handleDistributionCalculate(groupKey) {
-  rebuildDistributionWorkingLogs();
-  calculateDistributionResults(groupKey);
+async function handleDistributionCalculate(groupKey) {
+  try {
+    await loadDistributionBossRulesFromDb(true);
+    rebuildDistributionWorkingLogs();
+    if (state.distribution.unknownBosses.length) {
+      throw new Error("목록에 없거나 본토·월드 분류가 없는 보스가 있습니다. 미분류 보스를 확인해주세요.");
+    }
+    calculateDistributionResults(groupKey);
+  } catch (error) {
+    state.distribution.mainland.results = [];
+    state.distribution.world.results = [];
+    alert(error.message || "보스 점수를 불러오지 못해 계산을 중단했습니다.");
+  }
   renderDistributionTab();
 }
 
@@ -1747,12 +1732,6 @@ function handleDistributionClick(event) {
   const target = event.target.closest("button");
   if (!target) return;
   const role = target.dataset.role;
-
-  if (role === "newdist-delete-boss") {
-    state.distribution.bossRules = state.distribution.bossRules.filter((row) => row.id !== target.dataset.id);
-    renderDistributionBossRules();
-    return;
-  }
 
   if (role === "newdist-delete-name") {
     state.distribution.nameRules = state.distribution.nameRules.filter((row) => row.id !== target.dataset.id);
@@ -1800,21 +1779,6 @@ function handleDistributionInput(event) {
     return;
   }
 
-  if (role === "newdist-boss-name") {
-    const row = distribution.bossRules.find((entry) => entry.id === target.dataset.id);
-    if (row) row.name = target.value;
-    return;
-  }
-
-  if (role === "newdist-boss-score") {
-    const row = distribution.bossRules.find((entry) => entry.id === target.dataset.id);
-    if (row) {
-      const parsedScore = Math.floor(Number(target.value));
-      row.score = Number.isFinite(parsedScore) && parsedScore >= 0 ? parsedScore : 0;
-    }
-    return;
-  }
-
   if (role === "newdist-name-source") {
     const row = distribution.nameRules.find((entry) => entry.id === target.dataset.id);
     if (row) row.source = target.value;
@@ -1845,12 +1809,6 @@ function handleDistributionChange(event) {
   const target = event.target;
   const role = target.dataset.role;
 
-  if (role === "newdist-boss-group") {
-    const row = state.distribution.bossRules.find((entry) => entry.id === target.dataset.id);
-    if (row) row.group = target.value === "world" ? "world" : "mainland";
-    return;
-  }
-
   if (role === "newdist-deduction-mode") {
     const row = findDistributionDeductionRow(target.dataset.group, target.dataset.id);
     if (row) {
@@ -1863,7 +1821,7 @@ async function openDistributionModal(id) {
   document.getElementById(id)?.classList.remove("hidden");
   if (id === "newdistBossManageModal") {
     try {
-      await loadDistributionBossRulesFromDb();
+      await loadDistributionBossRulesFromDb(true);
     } catch (error) {
       alert(error.message || "분배 보스 목록 조회 중 오류가 발생했습니다.");
     }
@@ -1955,27 +1913,18 @@ function isUuidLike(value) {
 }
 
 async function loadDistributionBossRulesFromDb(forceReload = false) {
-  await loadDistributionBossRulesFromDbModule({
-    state,
-    supabase,
-    distributionBossRulesTable: DISTRIBUTION_BOSS_RULES_TABLE
-  }, forceReload);
-}
-
-async function ensureDistributionBossRulesLoaded() {
-  await ensureDistributionBossRulesLoadedModule({
-    state,
-    supabase,
-    distributionBossRulesTable: DISTRIBUTION_BOSS_RULES_TABLE
-  });
-}
-
-async function saveDistributionBossRulesToDb() {
-  await saveDistributionBossRulesToDbModule({
-    state,
-    supabase,
-    distributionBossRulesTable: DISTRIBUTION_BOSS_RULES_TABLE
-  });
+  state.distribution.bossRulesLoading = true;
+  state.distribution.bossRulesError = "";
+  renderDistributionBossRules();
+  try {
+    await loadDistributionBossRulesFromDbModule({ state, bossSupabase }, forceReload);
+  } catch (error) {
+    state.distribution.bossRulesError = error.message || "보스 목록 조회에 실패했습니다.";
+    throw error;
+  } finally {
+    state.distribution.bossRulesLoading = false;
+    renderDistributionTab();
+  }
 }
 
 function sanitizeDistributionNameRules() {
@@ -2024,7 +1973,6 @@ async function fetchPagedRows(makeQuery, errorPrefix, pageSize = 1000) {
 
   return rows;
 }
-
 
 async function loadHistoryData() {
   await loadHistoryDataModule({ state, supabase, fetchPagedRows, formatDateTime, alert });
@@ -2113,8 +2061,6 @@ async function handleHistoryExport() {
   });
 }
 
-
-
 function getDistributionPeriodRange() {
   return getDistributionPeriodRangeModule(state);
 }
@@ -2178,7 +2124,6 @@ function writeDistributionHistoryWorkbook(item, detail) {
     formatBossParticipationFileDate
   });
 }
-
 
 function initializeBossParticipationState() {
   initializeBossParticipationStateModule(state);
