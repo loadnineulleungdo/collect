@@ -1,0 +1,96 @@
+/* Mobile layout overrides. Keep desktop styles in style.css. */
+@media (max-width: 768px) {
+  .app { padding: 12px 10px; font-size: 14px; }
+  .topbar { gap: 10px; margin-bottom: 12px; }
+  .page-title { font-size: 20px; line-height: 1.35; }
+  .page-desc { margin-top: 4px; font-size: 12px; }
+  .topbar-actions { gap: 6px; }
+  .topbar-actions .btn { font-size: 12px; padding: 8px 10px; }
+  .tabs-wrap { margin-bottom: 12px; }
+  .tab-groups { min-width: 0; gap: 6px; }
+  .tab-category-tabs { padding: 3px; border-radius: 10px; }
+  .tab-category { min-height: 40px; padding: 6px 10px; font-size: 12px; }
+  .tabs.active { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; }
+  .tab { flex: 1 0 auto; width: auto; min-height: 40px; padding: 8px 10px; font-size: 12px; white-space: nowrap; }
+  .card { border-radius: 12px; box-shadow: 0 4px 16px rgba(15,23,42,.05); }
+  .card-header { padding: 12px; }
+  .card-title { font-size: 17px; }
+  .card-subtitle { margin-top: 4px; font-size: 12px; line-height: 1.5; }
+  .table-header { gap: 10px; }
+  .table-header > :first-child { flex: 1 1 100%; min-width: 0; }
+  .btn { min-height: 40px; padding: 8px 10px; font-size: 12px; border-radius: 8px; }
+  .table-search { display: grid; grid-template-columns: minmax(0,1fr) 40px auto; grid-template-areas: "input search reset"; gap: 6px; }
+  .table-search input { grid-area: input; width: 100%; height: 40px; padding: 8px; }
+  #searchBtn { grid-area: search; width: 40px; min-width: 40px; height: 40px; }
+  #resetBtn { grid-area: reset; width: auto; }
+  .table-wrap { padding: 0 0 8px; max-height: 62vh; }
+  .summary-table { min-width: 680px; border-collapse: separate; border-spacing: 0; }
+  .summary-table th, .summary-table td,
+  .manage-table th, .manage-table td,
+  .distribution-table th, .distribution-table td,
+  .newdist-table th, .newdist-table td { padding: 8px 7px; font-size: 12px; }
+  .summary-table thead th { height: 36px; top: 0; z-index: 3; }
+  .summary-table thead tr:nth-child(2) th { top: 36px; }
+  .summary-table tbody td:nth-child(2),
+  .summary-table thead tr:first-child th:nth-child(2) { position: sticky; left: 0; background: #fff; box-shadow: 2px 0 0 #e5e7eb; z-index: 2; }
+  .summary-table thead tr:first-child th:nth-child(2) { background: #f9fafb; z-index: 4; }
+  .summary-table tbody tr.power-zero-row td:nth-child(2) { background: #fef2f2; }
+  .value-box, .action-box { min-height: 32px; font-size: 12px; }
+  .badge, .toggle-single-btn { min-height: 36px; font-size: 12px; }
+  .actions-below-table { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .top-actions.actions-below-table-right { flex-wrap: wrap; margin-left: auto; }
+  .distribution-section, .newdist-section { padding: 12px; }
+  .distribution-section-title, .newdist-section-title { font-size: 14px; margin-bottom: 10px; }
+  .newdist-root { --newdist-gap: 8px; --newdist-block-padding: 8px; }
+  .newdist-section-head { gap: 8px; margin-bottom: 10px; }
+  .newdist-common-grid, .newdist-stats-grid, .newdist-summary-panel,
+  .distribution-summary-grid, .history-info-grid, .boss-participation-summary-grid,
+  .history-filter-grid, .boss-participation-filter-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .newdist-common-grid > :first-child,
+  .distribution-summary-grid > :first-child,
+  .history-info-grid > :first-child { grid-column: 1 / -1; }
+  .newdist-file-row { grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+  .newdist-stat, .newdist-panel-card, .distribution-summary-card { min-width: 0; padding: 10px; border-radius: 8px; }
+  .newdist-stat-label, .newdist-panel-label, .distribution-summary-label { margin-bottom: 5px; font-size: 11px; line-height: 1.4; }
+  .newdist-stat-value, .newdist-panel-value, .distribution-summary-value { font-size: 18px; line-height: 1.3; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  .history-info-value, #historySummaryPeriod { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+  .newdist-status-value { font-size: 14px; }
+  .newdist-block-head { padding: 10px; }
+  .newdist-block-title { font-size: 13px; }
+  .newdist-actions, .newdist-manage-actions { gap: 6px; }
+  .newdist-actions .btn, .newdist-manage-actions .btn { min-height: 40px; }
+  .newdist-section-head > .newdist-actions { width: 100%; }
+  .newdist-chip { padding: 7px 8px; font-size: 11px; }
+  .newdist-chip strong { font-size: 13px; }
+  .newdist-deduction-toolbar { gap: 8px; }
+  .newdist-deduction-summary { gap: 6px; flex-wrap: wrap; }
+  .newdist-table { min-width: 600px; }
+  .newdist-table td.newdist-log-participants-cell { min-width: 160px; max-width: 240px; }
+  .boss-participation-table { min-width: 820px; }
+  .boss-participation-participants-cell { min-width: 220px; max-width: 300px; }
+  .history-filter-grid > .distribution-button-row,
+  .boss-participation-button-row { grid-column: 1 / -1; display: flex; gap: 8px; }
+  .history-filter-grid > .distribution-button-row .btn,
+  .boss-participation-button-row .btn { flex: 1; min-width: 0; }
+  .distribution-header-actions, .history-header-actions { gap: 6px; }
+  .modal-backdrop, .newdist-modal-backdrop { padding: 10px; }
+  .modal { padding: 14px; border-radius: 12px; max-height: calc(100dvh - 20px); }
+  .modal h3, .newdist-modal-title { font-size: 17px; }
+  .newdist-modal { border-radius: 12px; max-height: calc(100dvh - 20px); }
+  .newdist-modal-head, .newdist-modal-body { padding: 12px; }
+  .admin-mode-actions { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .admin-password-change-btn { grid-column: 1 / -1; }
+  /* Prevent focus zoom on mobile without disabling user zoom. */
+  .app input, .app select, .app textarea { font-size: 16px; min-width: 0; }
+  .inline-power-input { width: 88px; }
+  .inline-weapon-select { width: 112px; }
+  .newdist-control[type="file"] { font-size: 12px; }
+  .table-wrap, .newdist-table-wrap, .distribution-table-wrap { overscroll-behavior-x: contain; }
+}
+
+@media (max-width: 360px) {
+  .app { padding: 10px 8px; }
+  .card-header, .distribution-section, .newdist-section { padding: 10px; }
+  .newdist-file-row { grid-template-columns: minmax(0,1fr); }
+  .newdist-stat-value, .newdist-panel-value, .distribution-summary-value { font-size: 16px; }
+}
